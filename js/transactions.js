@@ -1,0 +1,68 @@
+// منطق مربوط به تراکنش‌های درآمد/هزینه
+
+const Transactions = {
+  add({ type, title, amount, date, category, source = 'manual', refId = null }) {
+    const tx = {
+      id: generateId(),
+      type,
+      title,
+      amount: Number(amount),
+      date,
+      category: category || '',
+      source,
+      refId,
+    };
+    store.data.transactions.push(tx);
+    store.persist();
+    return tx;
+  },
+
+  update(id, changes) {
+    const tx = store.data.transactions.find((t) => t.id === id);
+    if (!tx) return null;
+    Object.assign(tx, changes);
+    store.persist();
+    return tx;
+  },
+
+  remove(id) {
+    store.data.transactions = store.data.transactions.filter((t) => t.id !== id);
+    store.persist();
+  },
+
+  removeByRef(refId) {
+    store.data.transactions = store.data.transactions.filter((t) => t.refId !== refId);
+    store.persist();
+  },
+
+  all() {
+    return store.data.transactions.slice().sort((a, b) => b.date.localeCompare(a.date));
+  },
+
+  forMonth(monthKey) {
+    return this.all().filter((t) => monthKeyOf(t.date) === monthKey);
+  },
+
+  availableMonthKeys() {
+    const keys = new Set(store.data.transactions.map((t) => monthKeyOf(t.date)));
+    keys.add(currentMonthKey());
+    return Array.from(keys).sort().reverse();
+  },
+
+  summaryForMonth(monthKey) {
+    const items = this.forMonth(monthKey);
+    const income = items.filter((t) => t.type === 'income').reduce((s, t) => s + t.amount, 0);
+    const expense = items.filter((t) => t.type === 'expense').reduce((s, t) => s + t.amount, 0);
+    return { income, expense, balance: income - expense, items };
+  },
+
+  categoryBreakdownForMonth(monthKey) {
+    const items = this.forMonth(monthKey).filter((t) => t.type === 'expense');
+    const map = {};
+    items.forEach((t) => {
+      const cat = t.category || 'misc';
+      map[cat] = (map[cat] || 0) + t.amount;
+    });
+    return map;
+  },
+};

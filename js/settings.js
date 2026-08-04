@@ -1,0 +1,31 @@
+// تنظیمات کلی برنامه: زبان، واحد پول، نوع تقویم
+
+const SETTINGS_KEY = 'finance_app_settings_v1';
+
+const defaultSettings = () => ({
+  language: 'fa',   // 'fa' | 'en' | 'de'
+  currency: 'IRT',  // 'IRT' | 'IRR' | 'USD' | 'EUR' | 'GBP'
+  calendar: 'jalali', // 'jalali' | 'gregorian'
+});
+
+function loadSettings() {
+  try {
+    const raw = localStorage.getItem(SETTINGS_KEY);
+    if (!raw) return defaultSettings();
+    return Object.assign(defaultSettings(), JSON.parse(raw));
+  } catch (e) {
+    console.error('خطا در بارگذاری تنظیمات', e);
+    return defaultSettings();
+  }
+}
+
+const Settings = {
+  data: loadSettings(),
+  get() {
+    return this.data;
+  },
+  update(changes) {
+    Object.assign(this.data, changes);
+    localStorage.setItem(SETTINGS_KEY, JSON.stringify(this.data));
+  },
+};

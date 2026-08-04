@@ -1,0 +1,395 @@
+<!DOCTYPE html>
+<html lang="fa" dir="rtl">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>حساب و کتاب | مدیریت مالی شخصی</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Vazirmatn:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+
+<div class="app-shell">
+
+  <!-- نوار ناوبری -->
+  <header class="topbar">
+    <div class="brand">
+      <span class="brand-icon">💰</span>
+      <span class="brand-name" data-i18n="brand.name">حساب و کتاب</span>
+    </div>
+    <nav class="main-nav" id="mainNav">
+      <button class="nav-btn active" data-view="dashboard" data-i18n="nav.dashboard">داشبورد</button>
+      <button class="nav-btn" data-view="transactions" data-i18n="nav.transactions">تراکنش‌ها</button>
+      <button class="nav-btn" data-view="installments" data-i18n="nav.installments">اقساط</button>
+      <button class="nav-btn" data-view="recurring" data-i18n="nav.recurring">هزینه‌های تکرارشونده</button>
+      <button class="nav-btn" data-view="reports" data-i18n="nav.reports">گزارش‌ها</button>
+    </nav>
+    <div class="topbar-actions">
+      <button id="settingsBtn" class="action-btn" data-i18n-title="topbar.settingsTitle" title="تنظیمات">
+        <span class="action-icon">⚙</span><span class="action-label" data-i18n="topbar.settingsLabel">تنظیمات</span>
+      </button>
+      <button id="exportBtn" class="action-btn" data-i18n-title="topbar.exportTitle" title="پشتیبان‌گیری (Export JSON)">
+        <span class="action-icon">⭳</span><span class="action-label" data-i18n="topbar.exportLabel">خروجی</span>
+      </button>
+      <label class="action-btn" data-i18n-title="topbar.importTitle" title="بازیابی (Import JSON)">
+        <span class="action-icon">⭱</span><span class="action-label" data-i18n="topbar.importLabel">ورودی</span>
+        <input type="file" id="importInput" accept="application/json" hidden>
+      </label>
+    </div>
+  </header>
+
+  <!-- انتخاب ماه -->
+  <div class="month-switcher">
+    <button id="prevMonthBtn" class="month-nav-btn" data-i18n="month.prev">◀ ماه قبل</button>
+    <div class="current-month-label" id="currentMonthLabel">-</div>
+    <button id="nextMonthBtn" class="month-nav-btn" data-i18n="month.next">ماه بعد ▶</button>
+  </div>
+
+  <main class="content">
+
+    <!-- ================= داشبورد ================= -->
+    <section class="view" id="view-dashboard">
+      <div class="cards-grid">
+        <div class="stat-card income">
+          <div class="stat-label" data-i18n="dashboard.statIncome">مجموع درآمد</div>
+          <div class="stat-value" id="statIncome">۰</div>
+        </div>
+        <div class="stat-card expense">
+          <div class="stat-label" data-i18n="dashboard.statExpense">مجموع هزینه</div>
+          <div class="stat-value" id="statExpense">۰</div>
+        </div>
+        <div class="stat-card balance">
+          <div class="stat-label" data-i18n="dashboard.statBalance">مانده‌ی نهایی</div>
+          <div class="stat-value" id="statBalance">۰</div>
+        </div>
+        <div class="stat-card installments">
+          <div class="stat-label" data-i18n="dashboard.statInstallments">مجموع اقساط فعال (ماهانه)</div>
+          <div class="stat-value" id="statInstallments">۰</div>
+        </div>
+        <div class="stat-card recurring">
+          <div class="stat-label" data-i18n="dashboard.statRecurring">هزینه‌های تکرارشونده‌ی این ماه</div>
+          <div class="stat-value" id="statRecurring">۰</div>
+        </div>
+      </div>
+
+      <div class="dashboard-bottom">
+        <div class="panel chart-panel">
+          <h3 data-i18n="dashboard.chartTitle">تفکیک هزینه‌ها بر اساس دسته‌بندی</h3>
+          <canvas id="categoryChart"></canvas>
+          <p class="empty-hint" id="chartEmptyHint" data-i18n="dashboard.chartEmpty" hidden>هنوز هزینه‌ای در این ماه ثبت نشده است.</p>
+        </div>
+        <div class="panel recent-panel">
+          <h3 data-i18n="dashboard.recentTitle">آخرین تراکنش‌های این ماه</h3>
+          <div id="recentTransactionsList" class="tx-list"></div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ================= تراکنش‌ها ================= -->
+    <section class="view hidden" id="view-transactions">
+      <div class="panel-header">
+        <h2 data-i18n="transactions.title">تراکنش‌های ماه</h2>
+      </div>
+      <div class="panel">
+        <table class="data-table" id="transactionsTable">
+          <thead>
+            <tr>
+              <th data-i18n="transactions.colTitle">عنوان</th>
+              <th data-i18n="transactions.colCategory">دسته‌بندی</th>
+              <th data-i18n="transactions.colDate">تاریخ</th>
+              <th data-i18n="transactions.colAmount">مبلغ</th>
+              <th data-i18n="transactions.colType">نوع</th>
+              <th></th>
+            </tr>
+          </thead>
+          <tbody id="transactionsTbody"></tbody>
+        </table>
+        <p class="empty-hint" id="transactionsEmptyHint" data-i18n="transactions.empty" hidden>تراکنشی برای این ماه ثبت نشده است.</p>
+      </div>
+    </section>
+
+    <!-- ================= اقساط ================= -->
+    <section class="view hidden" id="view-installments">
+      <div class="panel-header">
+        <h2 data-i18n="installments.title">مدیریت اقساط</h2>
+        <button class="btn btn-primary" id="addInstallmentBtn" data-i18n="installments.addBtn">+ ثبت قسط جدید</button>
+      </div>
+
+      <div class="panel">
+        <h3 class="sub-title" data-i18n="installments.activeTitle">اقساط فعال</h3>
+        <p class="hint-text" data-i18n="installments.clickHint">برای مشاهده‌ی جزئیات کلیک کنید</p>
+        <div id="activeInstallmentsList" class="card-list"></div>
+        <p class="empty-hint" id="activeInstallmentsEmptyHint" data-i18n="installments.activeEmpty" hidden>هیچ قسط فعالی وجود ندارد.</p>
+      </div>
+
+      <div class="panel">
+        <h3 class="sub-title" data-i18n="installments.paidTitle">اقساط تسویه‌شده</h3>
+        <div id="paidInstallmentsList" class="card-list"></div>
+        <p class="empty-hint" id="paidInstallmentsEmptyHint" data-i18n="installments.paidEmpty" hidden>هنوز قسطی تسویه نشده است.</p>
+      </div>
+    </section>
+
+    <!-- ================= هزینه‌های تکرارشونده ================= -->
+    <section class="view hidden" id="view-recurring">
+      <div class="panel-header">
+        <h2 data-i18n="recurring.title">هزینه‌های تکرارشونده</h2>
+        <button class="btn btn-primary" id="addRecurringBtn" data-i18n="recurring.addBtn">+ افزودن هزینه‌ی ثابت</button>
+      </div>
+      <div class="panel">
+        <div id="recurringList" class="card-list"></div>
+        <p class="empty-hint" id="recurringEmptyHint" data-i18n="recurring.empty" hidden>هزینه‌ی تکرارشونده‌ای ثبت نشده است.</p>
+      </div>
+    </section>
+
+    <!-- ================= گزارش‌ها ================= -->
+    <section class="view hidden" id="view-reports">
+      <div class="panel-header">
+        <h2 data-i18n="reports.title">گزارش کامل ماه</h2>
+        <button class="btn btn-primary" id="downloadPdfBtn" data-i18n="reports.downloadBtn">⭳ دانلود PDF</button>
+      </div>
+      <div class="panel" id="reportPanel">
+        <div class="report-header">
+          <h3 id="reportMonthTitle">-</h3>
+          <div class="report-summary" id="reportSummary"></div>
+        </div>
+        <table class="data-table" id="reportTable">
+          <thead>
+            <tr>
+              <th data-i18n="transactions.colTitle">عنوان</th>
+              <th data-i18n="transactions.colCategory">دسته‌بندی</th>
+              <th data-i18n="transactions.colDate">تاریخ</th>
+              <th data-i18n="transactions.colType">نوع</th>
+              <th data-i18n="transactions.colAmount">مبلغ</th>
+            </tr>
+          </thead>
+          <tbody id="reportTbody"></tbody>
+        </table>
+      </div>
+    </section>
+
+  </main>
+
+  <!-- دکمه‌ی شناور افزودن تراکنش -->
+  <button class="fab" id="fabAddTx" data-i18n-title="fab.addTransaction" title="افزودن تراکنش">
+    <span class="fab-icon">+</span>
+    <span class="fab-label" data-i18n="fab.addTransaction">افزودن تراکنش</span>
+  </button>
+
+</div>
+
+<!-- ================= مودال افزودن تراکنش ================= -->
+<div class="modal-overlay hidden" id="txModalOverlay">
+  <div class="modal">
+    <div class="modal-header">
+      <h3 data-i18n="modal.txNew">تراکنش جدید</h3>
+      <button class="modal-close" data-close-modal="txModalOverlay">×</button>
+    </div>
+    <form id="txForm">
+      <div class="type-toggle">
+        <button type="button" class="type-toggle-btn active" data-type="expense" data-i18n="common.expense">هزینه</button>
+        <button type="button" class="type-toggle-btn" data-type="income" data-i18n="common.income">درآمد</button>
+      </div>
+      <input type="hidden" id="txType" value="expense">
+
+      <div class="kind-toggle" id="kindToggle">
+        <button type="button" class="kind-toggle-btn active" data-kind="normal" data-i18n="modal.kindNormal">عادی</button>
+        <button type="button" class="kind-toggle-btn" data-kind="installment" data-i18n="modal.kindInstallment">قسط</button>
+        <button type="button" class="kind-toggle-btn" data-kind="recurring" data-i18n="modal.kindRecurring">تکرارشونده</button>
+      </div>
+      <input type="hidden" id="txKind" value="normal">
+
+      <label><span data-i18n="modal.fieldTitle">عنوان</span>
+        <input type="text" id="txTitle" required data-i18n-placeholder="placeholder.txTitle" placeholder="مثلاً خرید سوپرمارکت">
+      </label>
+
+      <!-- فیلدهای حالت عادی (درآمد یا هزینه‌ی معمولی) -->
+      <div class="field-group" id="normalFieldsGroup">
+        <label><span data-i18n="modal.fieldAmount">مبلغ</span>
+          <input type="number" id="txAmount" min="0" step="any" data-i18n-placeholder="placeholder.zero" placeholder="۰">
+        </label>
+        <label><span data-i18n="modal.fieldDate">تاریخ</span>
+          <div id="txDateFieldContainer"></div>
+        </label>
+        <label><span data-i18n="modal.fieldCategory">دسته‌بندی</span>
+          <select id="txCategory"></select>
+        </label>
+      </div>
+
+      <!-- فیلدهای حالت قسط -->
+      <div class="field-group hidden" id="installmentFieldsGroup">
+        <label><span data-i18n="modal.fieldTotalAmount">مبلغ کل باقی‌مانده</span>
+          <input type="number" id="txInstTotalAmount" min="0" step="any" data-i18n-placeholder="placeholder.zero" placeholder="۰">
+        </label>
+        <div class="kind-toggle" id="txInstModeToggle">
+          <button type="button" class="kind-toggle-btn active" data-mode="months" data-i18n="modal.instModeMonths">تعداد ماه باقی‌مانده را می‌دانم</button>
+          <button type="button" class="kind-toggle-btn" data-mode="amount" data-i18n="modal.instModeAmount">مبلغ قسط ماهانه را می‌دانم</button>
+        </div>
+        <input type="hidden" id="txInstMode" value="months">
+        <label id="txInstMonthsField"><span data-i18n="modal.fieldTotalMonths">تعداد ماه‌های باقی‌مانده</span>
+          <input type="number" id="txInstTotalMonths" min="1" data-i18n-placeholder="placeholder.months12" placeholder="۱۲">
+        </label>
+        <label id="txInstAmountField" class="hidden"><span data-i18n="modal.fieldMonthlyAmount">مبلغ هر قسط ماهانه</span>
+          <input type="number" id="txInstMonthlyAmount" min="0" step="any" data-i18n-placeholder="placeholder.zero" placeholder="۰">
+        </label>
+      </div>
+
+      <!-- فیلدهای حالت تکرارشونده -->
+      <div class="field-group hidden" id="recurringFieldsGroup">
+        <label><span data-i18n="modal.fieldAmount">مبلغ</span>
+          <input type="number" id="txRecAmount" min="0" step="any" data-i18n-placeholder="placeholder.zero" placeholder="۰">
+        </label>
+        <label><span data-i18n="modal.fieldDay">روز مشخص از ماه</span>
+          <input type="number" id="txRecDay" min="1" max="28" data-i18n-placeholder="placeholder.day5" placeholder="۵">
+        </label>
+        <label><span data-i18n="modal.fieldCategory">دسته‌بندی</span>
+          <select id="txRecCategory"></select>
+        </label>
+      </div>
+
+      <button type="submit" class="btn btn-primary btn-block" data-i18n="modal.submit">ثبت تراکنش</button>
+    </form>
+  </div>
+</div>
+
+<!-- ================= مودال افزودن قسط ================= -->
+<div class="modal-overlay hidden" id="installmentModalOverlay">
+  <div class="modal">
+    <div class="modal-header">
+      <h3 data-i18n="modal.instTitle">ثبت قسط جدید</h3>
+      <button class="modal-close" data-close-modal="installmentModalOverlay">×</button>
+    </div>
+    <form id="installmentForm">
+      <label><span data-i18n="modal.instFieldTitle">عنوان قسط</span>
+        <input type="text" id="instTitle" required data-i18n-placeholder="placeholder.instTitle" placeholder="مثلاً قسط خودرو">
+      </label>
+      <label><span data-i18n="modal.fieldTotalAmount">مبلغ کل باقی‌مانده</span>
+        <input type="number" id="instTotalAmount" required min="0" step="any" data-i18n-placeholder="placeholder.zero" placeholder="۰">
+      </label>
+      <div class="kind-toggle" id="instModeToggle">
+        <button type="button" class="kind-toggle-btn active" data-mode="months" data-i18n="modal.instModeMonths">تعداد ماه باقی‌مانده را می‌دانم</button>
+        <button type="button" class="kind-toggle-btn" data-mode="amount" data-i18n="modal.instModeAmount">مبلغ قسط ماهانه را می‌دانم</button>
+      </div>
+      <input type="hidden" id="instMode" value="months">
+      <label id="instMonthsField"><span data-i18n="modal.fieldTotalMonths">تعداد ماه‌های باقی‌مانده</span>
+        <input type="number" id="instTotalMonths" min="1" data-i18n-placeholder="placeholder.months12" placeholder="۱۲">
+      </label>
+      <label id="instAmountField" class="hidden"><span data-i18n="modal.fieldMonthlyAmount">مبلغ هر قسط ماهانه</span>
+        <input type="number" id="instMonthlyAmount" min="0" step="any" data-i18n-placeholder="placeholder.zero" placeholder="۰">
+      </label>
+      <button type="submit" class="btn btn-primary btn-block" data-i18n="modal.instSubmit">ثبت قسط</button>
+    </form>
+  </div>
+</div>
+
+<!-- ================= مودال افزودن هزینه‌ی تکرارشونده ================= -->
+<div class="modal-overlay hidden" id="recurringModalOverlay">
+  <div class="modal">
+    <div class="modal-header">
+      <h3 data-i18n="modal.recTitle">هزینه‌ی تکرارشونده‌ی جدید</h3>
+      <button class="modal-close" data-close-modal="recurringModalOverlay">×</button>
+    </div>
+    <form id="recurringForm">
+      <label><span data-i18n="modal.recFieldTitle">عنوان هزینه</span>
+        <input type="text" id="recTitle" required data-i18n-placeholder="placeholder.recTitle" placeholder="مثلاً اجاره خانه">
+      </label>
+      <label><span data-i18n="modal.fieldAmount">مبلغ</span>
+        <input type="number" id="recAmount" required min="0" step="any" data-i18n-placeholder="placeholder.zero" placeholder="۰">
+      </label>
+      <label><span data-i18n="modal.fieldDay">روز مشخص از ماه</span>
+        <input type="number" id="recDay" required min="1" max="28" data-i18n-placeholder="placeholder.day5" placeholder="۵">
+      </label>
+      <label><span data-i18n="modal.fieldCategory">دسته‌بندی</span>
+        <select id="recCategory"></select>
+      </label>
+      <button type="submit" class="btn btn-primary btn-block" data-i18n="modal.recSubmit">ثبت هزینه‌ی تکرارشونده</button>
+    </form>
+  </div>
+</div>
+
+<!-- ================= مودال جزئیات قسط ================= -->
+<div class="modal-overlay hidden" id="installmentDetailModalOverlay">
+  <div class="modal">
+    <div class="modal-header">
+      <h3 id="instDetailTitle">-</h3>
+      <button class="modal-close" data-close-modal="installmentDetailModalOverlay">×</button>
+    </div>
+    <div class="detail-progress">
+      <div class="item-progress"><div class="item-progress-fill" id="instDetailProgressFill" style="width:0%"></div></div>
+      <span class="detail-progress-label" id="instDetailProgressLabel">0%</span>
+    </div>
+    <div class="detail-grid" id="instDetailGrid"></div>
+    <button class="btn btn-danger btn-block" id="instDetailDeleteBtn" data-i18n="common.delete">حذف</button>
+  </div>
+</div>
+
+<!-- ================= مودال تأیید حذف ================= -->
+<div class="modal-overlay hidden" id="confirmModalOverlay">
+  <div class="modal modal-confirm">
+    <div class="modal-header">
+      <h3 data-i18n="confirm.title">تأیید حذف</h3>
+      <button class="modal-close" data-close-modal="confirmModalOverlay">×</button>
+    </div>
+    <p class="confirm-message" id="confirmMessage"></p>
+    <div class="confirm-actions">
+      <button type="button" class="btn btn-secondary" id="confirmCancelBtn" data-i18n="common.cancel">انصراف</button>
+      <button type="button" class="btn btn-danger" id="confirmOkBtn" data-i18n="common.delete">حذف</button>
+    </div>
+  </div>
+</div>
+
+<!-- ================= مودال تنظیمات ================= -->
+<div class="modal-overlay hidden" id="settingsModalOverlay">
+  <div class="modal">
+    <div class="modal-header">
+      <h3 data-i18n="settings.title">تنظیمات</h3>
+      <button class="modal-close" data-close-modal="settingsModalOverlay">×</button>
+    </div>
+    <form id="settingsForm">
+      <label><span data-i18n="settings.language">زبان</span>
+        <select id="settingsLanguage">
+          <option value="fa">فارسی</option>
+          <option value="en">English</option>
+          <option value="de">Deutsch</option>
+        </select>
+      </label>
+      <label><span data-i18n="settings.currency">واحد پول</span>
+        <select id="settingsCurrency">
+          <option value="IRT" data-i18n="settings.currencyToman">تومان</option>
+          <option value="IRR" data-i18n="settings.currencyRial">ریال</option>
+          <option value="USD" data-i18n="settings.currencyUsd">دلار آمریکا</option>
+          <option value="EUR" data-i18n="settings.currencyEur">یورو</option>
+          <option value="GBP" data-i18n="settings.currencyGbp">پوند انگلیس</option>
+        </select>
+      </label>
+      <label><span data-i18n="settings.calendar">تقویم</span>
+        <select id="settingsCalendar">
+          <option value="jalali" data-i18n="settings.calJalali">شمسی (جلالی)</option>
+          <option value="gregorian" data-i18n="settings.calGregorian">میلادی</option>
+        </select>
+      </label>
+      <button type="submit" class="btn btn-primary btn-block" data-i18n="settings.save">ذخیره تنظیمات</button>
+    </form>
+  </div>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.4/dist/chart.umd.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+
+<script src="js/storage.js"></script>
+<script src="js/settings.js"></script>
+<script src="js/jalali.js"></script>
+<script src="js/i18n.js"></script>
+<script src="js/utils.js"></script>
+<script src="js/transactions.js"></script>
+<script src="js/installments.js"></script>
+<script src="js/recurring.js"></script>
+<script src="js/dashboard.js"></script>
+<script src="js/reports.js"></script>
+<script src="js/ui.js"></script>
+<script src="js/app.js"></script>
+</body>
+</html>
