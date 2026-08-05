@@ -29,7 +29,6 @@ html, body {
   background: var(--bg);
   color: var(--text);
   font-family: 'Vazirmatn', Tahoma, sans-serif;
-  direction: rtl;
 }
 
 button, input, select {
@@ -110,11 +109,15 @@ button, input, select {
   display: flex;
   align-items: center;
   justify-content: center;
-  flex-wrap: wrap;
-  gap: 12px 20px;
+  flex-wrap: nowrap;
+  gap: 10px;
   padding: 14px 16px;
+  overflow-x: auto;
 }
 .month-nav-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
   background: var(--surface);
   border: 1px solid var(--border);
   border-radius: 999px;
@@ -126,10 +129,15 @@ button, input, select {
   flex-shrink: 0;
 }
 .month-nav-btn:hover { background: var(--bg); }
+.month-nav-arrow { line-height: 1; }
 .current-month-label {
   font-weight: 800;
   font-size: 1.1rem;
-  min-width: 120px;
+  white-space: nowrap;
+  flex-shrink: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
   text-align: center;
 }
 
@@ -238,10 +246,12 @@ button, input, select {
 }
 .data-table th, .data-table td {
   padding: 10px 8px;
-  text-align: right;
+  text-align: start;
   border-bottom: 1px solid var(--border);
 }
 .data-table th { color: var(--text-muted); font-weight: 700; font-size: 0.82rem; }
+.data-table tbody tr { transition: background 0.15s; }
+.data-table tbody tr:hover { background: var(--bg); }
 .data-table td.amount-income { color: var(--income); font-weight: 700; }
 .data-table td.amount-expense { color: var(--expense); font-weight: 700; }
 .data-table .row-delete-btn {
@@ -505,7 +515,7 @@ form input:focus, form select:focus {
 .toast {
   position: fixed;
   bottom: 26px;
-  right: 26px;
+  inset-inline-start: 26px;
   background: var(--text);
   color: #fff;
   padding: 12px 18px;
@@ -543,7 +553,7 @@ form input:focus, form select:focus {
   .brand { font-size: 1.02rem; }
   .brand-icon { font-size: 1.2rem; }
   .content { padding: 0 12px 100px; }
-  .month-switcher { gap: 8px 14px; padding: 12px 14px; }
+  .month-switcher { gap: 8px; padding: 12px 14px; }
   .fab { inset-inline-end: 16px; bottom: 16px; min-height: 50px; padding: 0 16px; font-size: 0.88rem; }
   .fab-icon { width: 22px; height: 22px; font-size: 1.15rem; }
   .data-table { font-size: 0.8rem; }
@@ -553,6 +563,7 @@ form input:focus, form select:focus {
   .brand-name { display: none; }
   .action-label { display: none; }
   .action-btn { padding: 8px 10px; }
+  .month-nav-label { display: none; }
   .month-nav-btn { padding: 6px 10px; font-size: 0.85rem; }
-  .current-month-label { font-size: 0.98rem; min-width: 0; }
+  .current-month-label { font-size: 0.92rem; max-width: 45vw; }
 }

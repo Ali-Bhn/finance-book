@@ -215,7 +215,7 @@ function initTxForm() {
   const kindInput = document.getElementById('txKind');
   const typeToggleBtns = document.querySelectorAll('.type-toggle-btn');
   const kindToggle = document.getElementById('kindToggle');
-  const kindToggleBtns = document.querySelectorAll('.kind-toggle-btn');
+  const kindToggleBtns = kindToggle.querySelectorAll('.kind-toggle-btn');
 
   const fieldGroups = {
     normal: document.getElementById('normalFieldsGroup'),
@@ -535,14 +535,16 @@ function renderRecurringView() {
 }
 
 // ---------- Settings ----------
+function openSettingsModal() {
+  const s = Settings.get();
+  document.getElementById('settingsLanguage').value = s.language;
+  document.getElementById('settingsCurrency').value = s.currency;
+  document.getElementById('settingsCalendar').value = s.calendar;
+  openModal('settingsModalOverlay');
+}
+
 function initSettingsForm() {
-  document.getElementById('settingsBtn').addEventListener('click', () => {
-    const s = Settings.get();
-    document.getElementById('settingsLanguage').value = s.language;
-    document.getElementById('settingsCurrency').value = s.currency;
-    document.getElementById('settingsCalendar').value = s.calendar;
-    openModal('settingsModalOverlay');
-  });
+  document.getElementById('settingsBtn').addEventListener('click', openSettingsModal);
 
   document.getElementById('settingsForm').addEventListener('submit', (e) => {
     e.preventDefault();
@@ -557,28 +559,6 @@ function initSettingsForm() {
     selectedMonthKey = currentMonthKey();
     renderActiveView();
     showToast(t('toast.settingsSaved'));
-  });
-}
-
-// ---------- Export / Import ----------
-function initBackupHandlers() {
-  document.getElementById('exportBtn').addEventListener('click', () => {
-    exportDataAsJson();
-    showToast(t('toast.backupExported'));
-  });
-
-  document.getElementById('importInput').addEventListener('change', (e) => {
-    const file = e.target.files[0];
-    if (!file) return;
-    importDataFromJson(file, (ok, errorMsg) => {
-      if (ok) {
-        showToast(t('toast.backupImported'));
-        renderActiveView();
-      } else {
-        showToast(`${t('toast.backupImportError')}: ${errorMsg}`);
-      }
-      e.target.value = '';
-    });
   });
 }
 

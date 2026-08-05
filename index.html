@@ -4,6 +4,16 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>حساب و کتاب | مدیریت مالی شخصی</title>
+
+<!-- PWA -->
+<link rel="manifest" href="manifest.json">
+<meta name="theme-color" content="#2f6fed">
+<link rel="icon" type="image/png" href="icons/icon-192.png">
+<link rel="apple-touch-icon" href="icons/icon-180.png">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="حساب و کتاب">
+
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Vazirmatn:wght@400;500;600;700;800&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="css/style.css">
@@ -29,21 +39,18 @@
       <button id="settingsBtn" class="action-btn" data-i18n-title="topbar.settingsTitle" title="تنظیمات">
         <span class="action-icon">⚙</span><span class="action-label" data-i18n="topbar.settingsLabel">تنظیمات</span>
       </button>
-      <button id="exportBtn" class="action-btn" data-i18n-title="topbar.exportTitle" title="پشتیبان‌گیری (Export JSON)">
-        <span class="action-icon">⭳</span><span class="action-label" data-i18n="topbar.exportLabel">خروجی</span>
-      </button>
-      <label class="action-btn" data-i18n-title="topbar.importTitle" title="بازیابی (Import JSON)">
-        <span class="action-icon">⭱</span><span class="action-label" data-i18n="topbar.importLabel">ورودی</span>
-        <input type="file" id="importInput" accept="application/json" hidden>
-      </label>
     </div>
   </header>
 
   <!-- انتخاب ماه -->
   <div class="month-switcher">
-    <button id="prevMonthBtn" class="month-nav-btn" data-i18n="month.prev">◀ ماه قبل</button>
+    <button id="prevMonthBtn" class="month-nav-btn">
+      <span class="month-nav-arrow">◀</span><span class="month-nav-label" data-i18n="month.prev">ماه قبل</span>
+    </button>
     <div class="current-month-label" id="currentMonthLabel">-</div>
-    <button id="nextMonthBtn" class="month-nav-btn" data-i18n="month.next">ماه بعد ▶</button>
+    <button id="nextMonthBtn" class="month-nav-btn">
+      <span class="month-nav-label" data-i18n="month.next">ماه بعد</span><span class="month-nav-arrow">▶</span>
+    </button>
   </div>
 
   <main class="content">
@@ -345,12 +352,13 @@
       <h3 data-i18n="settings.title">تنظیمات</h3>
       <button class="modal-close" data-close-modal="settingsModalOverlay">×</button>
     </div>
+    <p class="hint-text" data-i18n="settings.intro">لطفاً زبان، واحد پول و تقویم مورد نظر خود را انتخاب کنید.</p>
     <form id="settingsForm">
       <label><span data-i18n="settings.language">زبان</span>
         <select id="settingsLanguage">
-          <option value="fa">فارسی</option>
-          <option value="en">English</option>
-          <option value="de">Deutsch</option>
+          <option value="fa">🇮🇷 فارسی</option>
+          <option value="en">🇬🇧 English</option>
+          <option value="de">🇩🇪 Deutsch</option>
         </select>
       </label>
       <label><span data-i18n="settings.currency">واحد پول</span>

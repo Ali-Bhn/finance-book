@@ -14,9 +14,22 @@ document.addEventListener('DOMContentLoaded', () => {
   initInstallmentForm();
   initRecurringForm();
   initSettingsForm();
-  initBackupHandlers();
   initReportHandlers();
 
   populateCategorySelects('expense');
   switchView('dashboard');
+
+  // بار اول که کاربر وارد سایت می‌شود، از او می‌خواهیم زبان/واحد پول/تقویم را انتخاب کند
+  if (Settings.isFirstVisit) {
+    openSettingsModal();
+  }
 });
+
+// ثبت Service Worker برای کارکرد آفلاین (PWA)
+if ('serviceWorker' in navigator) {
+  window.addEventListener('load', () => {
+    navigator.serviceWorker.register('./sw.js').catch((err) => {
+      console.error('ثبت Service Worker ناموفق بود:', err);
+    });
+  });
+}

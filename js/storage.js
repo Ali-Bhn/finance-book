@@ -34,37 +34,3 @@ const store = {
     saveData(this.data);
   },
 };
-
-function exportDataAsJson() {
-  const blob = new Blob([JSON.stringify(store.data, null, 2)], { type: 'application/json' });
-  const url = URL.createObjectURL(blob);
-  const a = document.createElement('a');
-  const today = new Date().toISOString().slice(0, 10);
-  a.href = url;
-  a.download = `finance-backup-${today}.json`;
-  document.body.appendChild(a);
-  a.click();
-  a.remove();
-  URL.revokeObjectURL(url);
-}
-
-function importDataFromJson(file, onDone) {
-  const reader = new FileReader();
-  reader.onload = (e) => {
-    try {
-      const parsed = JSON.parse(e.target.result);
-      if (!parsed || typeof parsed !== 'object') throw new Error('فرمت فایل نامعتبر است');
-      store.data = {
-        transactions: Array.isArray(parsed.transactions) ? parsed.transactions : [],
-        installments: Array.isArray(parsed.installments) ? parsed.installments : [],
-        recurring: Array.isArray(parsed.recurring) ? parsed.recurring : [],
-      };
-      store.persist();
-      onDone(true);
-    } catch (err) {
-      console.error(err);
-      onDone(false, err.message);
-    }
-  };
-  reader.readAsText(file);
-}

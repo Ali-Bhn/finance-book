@@ -3,7 +3,7 @@
 const SETTINGS_KEY = 'finance_app_settings_v1';
 
 const defaultSettings = () => ({
-  language: 'fa',   // 'fa' | 'en' | 'de'
+  language: 'en',   // 'fa' | 'en' | 'de'
   currency: 'IRT',  // 'IRT' | 'IRR' | 'USD' | 'EUR' | 'GBP'
   calendar: 'jalali', // 'jalali' | 'gregorian'
 });
@@ -21,6 +21,8 @@ function loadSettings() {
 
 const Settings = {
   data: loadSettings(),
+  // اگر قبلاً هیچ تنظیماتی ذخیره نشده، یعنی اولین بازدید کاربر از سایت است
+  isFirstVisit: localStorage.getItem(SETTINGS_KEY) === null,
   get() {
     return this.data;
   },
