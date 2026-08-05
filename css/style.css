@@ -29,6 +29,9 @@ html, body {
   background: var(--bg);
   color: var(--text);
   font-family: 'Vazirmatn', Tahoma, sans-serif;
+  /* safeguard: no matter what overflows inside, the page itself never scrolls sideways */
+  overflow-x: hidden;
+  max-width: 100%;
 }
 
 button, input, select {
@@ -239,6 +242,10 @@ button, input, select {
 .tx-row .tx-amount.expense { color: var(--expense); }
 
 /* ===== Tables ===== */
+.table-scroll {
+  overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
+}
 .data-table {
   width: 100%;
   border-collapse: collapse;

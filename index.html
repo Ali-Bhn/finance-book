@@ -99,19 +99,21 @@
         <h2 data-i18n="transactions.title">تراکنش‌های ماه</h2>
       </div>
       <div class="panel">
-        <table class="data-table" id="transactionsTable">
-          <thead>
-            <tr>
-              <th data-i18n="transactions.colTitle">عنوان</th>
-              <th data-i18n="transactions.colCategory">دسته‌بندی</th>
-              <th data-i18n="transactions.colDate">تاریخ</th>
-              <th data-i18n="transactions.colAmount">مبلغ</th>
-              <th data-i18n="transactions.colType">نوع</th>
-              <th></th>
-            </tr>
-          </thead>
-          <tbody id="transactionsTbody"></tbody>
-        </table>
+        <div class="table-scroll">
+          <table class="data-table" id="transactionsTable">
+            <thead>
+              <tr>
+                <th data-i18n="transactions.colTitle">عنوان</th>
+                <th data-i18n="transactions.colCategory">دسته‌بندی</th>
+                <th data-i18n="transactions.colDate">تاریخ</th>
+                <th data-i18n="transactions.colAmount">مبلغ</th>
+                <th data-i18n="transactions.colType">نوع</th>
+                <th></th>
+              </tr>
+            </thead>
+            <tbody id="transactionsTbody"></tbody>
+          </table>
+        </div>
         <p class="empty-hint" id="transactionsEmptyHint" data-i18n="transactions.empty" hidden>تراکنشی برای این ماه ثبت نشده است.</p>
       </div>
     </section>
@@ -160,18 +162,20 @@
           <h3 id="reportMonthTitle">-</h3>
           <div class="report-summary" id="reportSummary"></div>
         </div>
-        <table class="data-table" id="reportTable">
-          <thead>
-            <tr>
-              <th data-i18n="transactions.colTitle">عنوان</th>
-              <th data-i18n="transactions.colCategory">دسته‌بندی</th>
-              <th data-i18n="transactions.colDate">تاریخ</th>
-              <th data-i18n="transactions.colType">نوع</th>
-              <th data-i18n="transactions.colAmount">مبلغ</th>
-            </tr>
-          </thead>
-          <tbody id="reportTbody"></tbody>
-        </table>
+        <div class="table-scroll">
+          <table class="data-table" id="reportTable">
+            <thead>
+              <tr>
+                <th data-i18n="transactions.colTitle">عنوان</th>
+                <th data-i18n="transactions.colCategory">دسته‌بندی</th>
+                <th data-i18n="transactions.colDate">تاریخ</th>
+                <th data-i18n="transactions.colType">نوع</th>
+                <th data-i18n="transactions.colAmount">مبلغ</th>
+              </tr>
+            </thead>
+            <tbody id="reportTbody"></tbody>
+          </table>
+        </div>
       </div>
     </section>
 

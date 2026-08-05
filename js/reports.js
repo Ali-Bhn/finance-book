@@ -34,10 +34,16 @@ function renderReport(monthKey) {
 
 async function downloadReportAsPdf(monthKey) {
   const reportPanel = document.getElementById('reportPanel');
+  const tableScroll = reportPanel.querySelector('.table-scroll');
   const btn = document.getElementById('downloadPdfBtn');
   const originalLabel = btn.textContent;
   btn.disabled = true;
   btn.textContent = t('reports.pdfBuilding');
+
+  // روی صفحه‌ی موبایل جدول ممکن است به‌صورت افقی اسکرول‌شونده باشد؛
+  // برای اینکه PDF همیشه کل جدول را کامل بگیرد نه فقط بخش دیده‌شده، موقتاً اسکرول را غیرفعال می‌کنیم
+  const prevOverflow = tableScroll ? tableScroll.style.overflow : null;
+  if (tableScroll) tableScroll.style.overflow = 'visible';
 
   try {
     const canvas = await html2canvas(reportPanel, {
@@ -73,6 +79,7 @@ async function downloadReportAsPdf(monthKey) {
     console.error(err);
     showToast(t('reports.pdfError'));
   } finally {
+    if (tableScroll) tableScroll.style.overflow = prevOverflow;
     btn.disabled = false;
     btn.textContent = originalLabel;
   }
