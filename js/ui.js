@@ -232,9 +232,11 @@ function initTxForm() {
   document.getElementById('fabAddTx').addEventListener('click', () => {
     form.reset();
     buildDateField(todayIso());
+    // ترتیب مهم است: setMode روی required فیلدهای قسط اثر می‌گذارد،
+    // پس باید قبل از setTxKind اجرا شود تا setTxKind نتیجه‌ی نهایی و درست را ثبت کند
+    txInstModeCtl.setMode('months');
     setTxType('expense');
     setTxKind('normal');
-    txInstModeCtl.setMode('months');
     openModal('txModalOverlay');
   });
 

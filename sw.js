@@ -1,6 +1,6 @@
 // Service worker: caches the app shell so it keeps working offline.
 // Bump CACHE_NAME whenever a precached file changes so old caches get replaced.
-const CACHE_NAME = 'finance-book-v6';
+const CACHE_NAME = 'finance-book-v7';
 
 const PRECACHE_URLS = [
   './',
