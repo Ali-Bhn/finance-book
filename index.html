@@ -3,6 +3,9 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<!-- امنیت: فقط اسکریپت‌های خود سایت و منابع مشخص (CDN کتابخانه‌ها و ورود گوگل/Firebase) اجازه‌ی اجرا دارند -->
+<meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' https://cdn.jsdelivr.net https://cdnjs.cloudflare.com https://www.gstatic.com https://apis.google.com; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' https://fonts.gstatic.com; img-src 'self' data: blob: https://*.googleusercontent.com; connect-src 'self' https://*.googleapis.com https://www.gstatic.com https://apis.google.com; frame-src https://*.firebaseapp.com https://accounts.google.com https://apis.google.com; worker-src 'self'; manifest-src 'self'; object-src 'none'; base-uri 'self'; form-action 'self'">
+<meta name="referrer" content="strict-origin-when-cross-origin">
 <title>حساب و کتاب | مدیریت مالی شخصی</title>
 
 <!-- PWA -->
@@ -35,7 +38,10 @@
       <button class="nav-btn" data-view="installments"><span class="nav-icon">🧾</span><span class="nav-label" data-i18n="nav.installments">اقساط</span></button>
       <button class="nav-btn" data-view="reports"><span class="nav-icon">📊</span><span class="nav-label" data-i18n="nav.reports">گزارش</span></button>
     </nav>
-    <button id="settingsBtn" class="icon-btn" data-i18n-title="topbar.settingsTitle" title="تنظیمات">⚙️</button>
+    <div class="topbar-actions">
+      <button id="syncBtn" class="icon-btn sync-btn hidden" data-i18n-title="acc.title" title="حساب و همگام‌سازی">☁️<span class="sync-dot" id="syncDot"></span></button>
+      <button id="settingsBtn" class="icon-btn" data-i18n-title="topbar.settingsTitle" title="تنظیمات">⚙️</button>
+    </div>
   </header>
 
   <!-- انتخاب ماه -->
@@ -339,6 +345,11 @@
       <button class="modal-close" data-close-modal="settingsModalOverlay">×</button>
     </div>
     <p class="hint-text" data-i18n="settings.intro">لطفاً زبان، واحد پول و تقویم مورد نظر خود را انتخاب کنید.</p>
+    <button type="button" class="settings-sync-row hidden" id="settingsSyncRow">
+      <span class="ssr-icon">☁️</span>
+      <span class="ssr-text"><b data-i18n="acc.title">حساب و همگام‌سازی</b><small id="settingsSyncStatus"></small></span>
+      <span class="ssr-arrow">›</span>
+    </button>
     <form id="settingsForm">
       <label><span data-i18n="settings.language">زبان</span>
         <select id="settingsLanguage">
@@ -367,6 +378,179 @@
   </div>
 </div>
 
+<!-- ================= مودال حساب و همگام‌سازی (اختیاری) ================= -->
+<div class="modal-overlay hidden" id="accountModalOverlay">
+  <div class="modal account-modal">
+    <div class="modal-header">
+      <h3 data-i18n="acc.title">حساب و همگام‌سازی</h3>
+      <button class="modal-close" data-close-modal="accountModalOverlay">×</button>
+    </div>
+    <p class="form-error hidden" id="accError" role="alert"></p>
+    <p class="form-success hidden" id="accInfo" role="status"></p>
+
+    <!-- وارد نشده -->
+    <div class="acc-pane" data-pane="signin">
+      <p class="acc-intro" data-i18n="acc.intro"></p>
+      <button type="button" class="btn btn-google btn-block btn-lg" id="accGoogleBtn"><span class="g-logo">G</span><span data-i18n="acc.google"></span></button>
+      <div class="acc-divider"><span data-i18n="acc.orEmail"></span></div>
+      <form id="accEmailForm" novalidate>
+        <label><span data-i18n="acc.email"></span>
+          <input type="email" id="accEmail" autocomplete="username" inputmode="email">
+        </label>
+        <label><span data-i18n="acc.loginPassword"></span>
+          <input type="password" id="accPassword" autocomplete="current-password">
+        </label>
+        <div class="form-actions even">
+          <button type="button" class="btn btn-secondary" id="accSignUpBtn" data-i18n="acc.signUp"></button>
+          <button type="submit" class="btn btn-primary" data-i18n="acc.signIn"></button>
+        </div>
+        <button type="button" class="link-btn acc-link" id="accForgotBtn" data-i18n="acc.forgotLogin"></button>
+      </form>
+    </div>
+
+    <div class="acc-pane" data-pane="loading">
+      <div class="acc-spinner" aria-hidden="true"></div>
+      <p class="acc-center" data-i18n="acc.loading"></p>
+    </div>
+
+    <div class="acc-pane" data-pane="needs-verify">
+      <div class="acc-big-icon">📧</div>
+      <p class="acc-text" id="accVerifyText"></p>
+      <button type="button" class="btn btn-primary btn-block btn-lg" id="accVerifiedBtn" data-i18n="acc.verifiedBtn"></button>
+      <div class="form-actions">
+        <button type="button" class="btn btn-secondary" id="accResendBtn" data-i18n="acc.resend"></button>
+        <button type="button" class="btn btn-secondary" data-acc-signout-now data-i18n="acc.signOut"></button>
+      </div>
+    </div>
+
+    <div class="acc-pane" data-pane="foreign">
+      <div class="acc-big-icon">⚠️</div>
+      <p class="acc-text" data-i18n="acc.foreignText"></p>
+      <button type="button" class="btn btn-primary btn-block btn-lg" id="accForeignOkBtn" data-i18n="acc.foreignOk"></button>
+      <button type="button" class="btn btn-secondary btn-block" data-acc-signout-now data-i18n="acc.signOut"></button>
+    </div>
+
+    <div class="acc-pane" data-pane="needs-setup">
+      <div class="acc-big-icon">🔐</div>
+      <h4 class="acc-h" data-i18n="acc.setupTitle"></h4>
+      <p class="acc-text" data-i18n="acc.setupText"></p>
+      <form id="accSetupForm" novalidate>
+        <label><span data-i18n="acc.syncPassword"></span>
+          <input type="password" id="accSetupPw" autocomplete="new-password">
+        </label>
+        <label><span data-i18n="acc.syncPasswordRepeat"></span>
+          <input type="password" id="accSetupPw2" autocomplete="new-password">
+        </label>
+        <p class="acc-note" data-i18n="acc.setupNote"></p>
+        <button type="submit" class="btn btn-primary btn-block btn-lg" data-i18n="acc.setupBtn"></button>
+      </form>
+    </div>
+
+    <div class="acc-pane" data-pane="recovery-show">
+      <div class="acc-big-icon">🗝️</div>
+      <h4 class="acc-h" data-i18n="acc.recTitle"></h4>
+      <p class="acc-text" data-i18n="acc.recText"></p>
+      <div class="rec-key" id="accRecKey" dir="ltr"></div>
+      <div class="form-actions even">
+        <button type="button" class="btn btn-secondary" id="accRecCopyBtn" data-i18n="acc.copy"></button>
+        <button type="button" class="btn btn-secondary" id="accRecDownloadBtn" data-i18n="acc.download"></button>
+      </div>
+      <label class="check-row acc-check">
+        <input type="checkbox" id="accRecSaved">
+        <span data-i18n="acc.recSaved"></span>
+      </label>
+      <button type="button" class="btn btn-primary btn-block btn-lg" id="accRecDoneBtn" data-i18n="acc.done" disabled></button>
+    </div>
+
+    <div class="acc-pane" data-pane="locked">
+      <div class="acc-big-icon">🔒</div>
+      <h4 class="acc-h" data-i18n="acc.lockedTitle"></h4>
+      <p class="acc-text" data-i18n="acc.lockedText"></p>
+      <form id="accUnlockForm" novalidate>
+        <label><span data-i18n="acc.syncPassword"></span>
+          <input type="password" id="accUnlockPw" autocomplete="current-password">
+        </label>
+        <button type="submit" class="btn btn-primary btn-block btn-lg" data-i18n="acc.unlockBtn"></button>
+      </form>
+      <button type="button" class="link-btn acc-link" data-acc-go="recover" data-i18n="acc.useRecovery"></button>
+      <button type="button" class="link-btn acc-link muted" data-acc-signout-now data-i18n="acc.signOut"></button>
+    </div>
+
+    <div class="acc-pane" data-pane="recover">
+      <h4 class="acc-h" data-i18n="acc.recoverTitle"></h4>
+      <p class="acc-text" data-i18n="acc.recoverText"></p>
+      <form id="accRecoverForm" novalidate>
+        <label><span data-i18n="acc.recoveryKey"></span>
+          <input type="text" id="accRecoverKey" dir="ltr" autocomplete="off" autocapitalize="characters" spellcheck="false" placeholder="XXXX-XXXX-XXXX-XXXX-XXXX-XXXX-XXXX-XXXX">
+        </label>
+        <label><span data-i18n="acc.newSyncPassword"></span>
+          <input type="password" id="accRecoverPw" autocomplete="new-password">
+        </label>
+        <label><span data-i18n="acc.syncPasswordRepeat"></span>
+          <input type="password" id="accRecoverPw2" autocomplete="new-password">
+        </label>
+        <div class="form-actions">
+          <button type="button" class="btn btn-secondary" data-acc-back data-i18n="acc.back"></button>
+          <button type="submit" class="btn btn-primary" data-i18n="acc.recoverBtn"></button>
+        </div>
+      </form>
+    </div>
+
+    <div class="acc-pane" data-pane="account">
+      <div class="acc-user">
+        <span class="acc-avatar" id="accAvatar">?</span>
+        <div class="acc-user-info">
+          <b id="accUserEmail"></b>
+          <span class="acc-status" id="accStatusLine"></span>
+        </div>
+      </div>
+      <div class="acc-badge">🔐 <span data-i18n="acc.e2eBadge"></span></div>
+      <button type="button" class="btn btn-primary btn-block" id="accSyncNowBtn" data-i18n="acc.syncNow"></button>
+      <div class="acc-menu">
+        <button type="button" class="acc-menu-item" data-acc-go="change-password"><span data-i18n="acc.changePw"></span><span>›</span></button>
+        <button type="button" class="acc-menu-item" data-acc-go="signout"><span data-i18n="acc.signOut"></span><span>›</span></button>
+        <button type="button" class="acc-menu-item danger" data-acc-go="delete"><span data-i18n="acc.deleteCloud"></span><span>›</span></button>
+      </div>
+    </div>
+
+    <div class="acc-pane" data-pane="change-password">
+      <h4 class="acc-h" data-i18n="acc.changePw"></h4>
+      <form id="accChangePwForm" novalidate>
+        <label><span data-i18n="acc.currentSyncPassword"></span>
+          <input type="password" id="accCurPw" autocomplete="current-password">
+        </label>
+        <label><span data-i18n="acc.newSyncPassword"></span>
+          <input type="password" id="accNewPw" autocomplete="new-password">
+        </label>
+        <label><span data-i18n="acc.syncPasswordRepeat"></span>
+          <input type="password" id="accNewPw2" autocomplete="new-password">
+        </label>
+        <div class="form-actions">
+          <button type="button" class="btn btn-secondary" data-acc-back data-i18n="acc.back"></button>
+          <button type="submit" class="btn btn-primary" data-i18n="acc.save"></button>
+        </div>
+      </form>
+    </div>
+
+    <div class="acc-pane" data-pane="signout">
+      <h4 class="acc-h" data-i18n="acc.signOutTitle"></h4>
+      <p class="acc-text" data-i18n="acc.signOutText"></p>
+      <button type="button" class="btn btn-secondary btn-block btn-lg" id="accSignOutKeepBtn" data-i18n="acc.signOutKeep"></button>
+      <button type="button" class="btn btn-danger btn-block btn-lg" id="accSignOutWipeBtn" data-i18n="acc.signOutWipe"></button>
+      <button type="button" class="link-btn acc-link" data-acc-back data-i18n="acc.back"></button>
+    </div>
+
+    <div class="acc-pane" data-pane="delete">
+      <h4 class="acc-h" data-i18n="acc.deleteTitle"></h4>
+      <p class="acc-text" data-i18n="acc.deleteText"></p>
+      <div class="form-actions">
+        <button type="button" class="btn btn-secondary" data-acc-back data-i18n="acc.back"></button>
+        <button type="button" class="btn btn-danger" id="accDeleteBtn" data-i18n="acc.deleteBtn"></button>
+      </div>
+    </div>
+  </div>
+</div>
+
 <div class="toast" id="toast"></div>
 
 <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.4/dist/chart.umd.min.js"></script>
@@ -384,6 +568,11 @@
 <script src="js/dashboard.js"></script>
 <script src="js/reports.js"></script>
 <script src="js/ui.js"></script>
+<script src="js/firebase-config.js"></script>
+<script src="js/merge.js"></script>
+<script src="js/vault.js"></script>
+<script src="js/sync.js"></script>
+<script src="js/account.js"></script>
 <script src="js/app.js"></script>
 </body>
 </html>

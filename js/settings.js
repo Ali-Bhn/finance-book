@@ -27,7 +27,13 @@ const Settings = {
     return this.data;
   },
   update(changes) {
-    Object.assign(this.data, changes);
+    Object.assign(this.data, changes, { updatedAt: Date.now() });
+    localStorage.setItem(SETTINGS_KEY, JSON.stringify(this.data));
+    if (typeof Sync !== 'undefined') Sync.onLocalChange();
+  },
+  // تنظیمات رسیده از همگام‌سازی (بدون تغییر زمان)
+  replace(data) {
+    this.data = Object.assign(defaultSettings(), data);
     localStorage.setItem(SETTINGS_KEY, JSON.stringify(this.data));
   },
 };

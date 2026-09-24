@@ -1,6 +1,6 @@
 // Service worker: caches the app shell so it keeps working offline.
 // Bump CACHE_NAME whenever a precached file changes so old caches get replaced.
-const CACHE_NAME = 'finance-book-v11';
+const CACHE_NAME = 'finance-book-v13';
 
 const PRECACHE_URLS = [
   './',
@@ -18,6 +18,12 @@ const PRECACHE_URLS = [
   './js/dashboard.js',
   './js/reports.js',
   './js/ui.js',
+  './js/firebase-config.js',
+  './js/merge.js',
+  './js/vault.js',
+  './js/sync.js',
+  './js/cloud.js',
+  './js/account.js',
   './js/app.js',
   './icons/icon-192.png',
   './icons/icon-512.png',

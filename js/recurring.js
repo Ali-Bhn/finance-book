@@ -85,6 +85,7 @@ const Recurring = {
     }
 
     Transactions.add({
+      id: `rec-${item.id}-${monthKey}`,
       type: item.type,
       title: item.title,
       amount: item.amount,

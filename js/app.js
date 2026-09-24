@@ -3,6 +3,11 @@
 document.addEventListener('DOMContentLoaded', () => {
   applyStaticTranslations();
 
+  // مبنای تشخیص تغییرات برای همگام‌سازی: بعد از تکمیل فیلدهای داده‌های قدیمی (normalize) و قبل از هر تغییری
+  Installments.all();
+  Recurring.all();
+  store.resetSnapshot();
+
   // در ابتدای هر بار باز شدن برنامه، اقساط و هزینه‌های تکرارشونده‌ی ماه جاری را همگام می‌کند
   Transactions.repairJalaliDates();
   Installments.syncAllForCurrentMonth();
@@ -16,6 +21,14 @@ document.addEventListener('DOMContentLoaded', () => {
   initReportHandlers();
 
   switchView('dashboard');
+
+  // ورود و همگام‌سازی اختیاری (فقط اگر Firebase تنظیم شده باشد)
+  document.addEventListener('finance:data-changed', () => {
+    applyStaticTranslations();
+    renderActiveView();
+  });
+  AccountUI.init();
+  Sync.init();
 
   // بار اول که کاربر وارد سایت می‌شود، از او می‌خواهیم زبان/واحد پول/تقویم را انتخاب کند
   if (Settings.isFirstVisit) {
