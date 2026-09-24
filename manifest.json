@@ -1,13 +1,13 @@
 {
   "name": "حساب و کتاب - مدیریت مالی شخصی",
   "short_name": "حساب و کتاب",
-  "description": "اپلیکیشن مدیریت مالی شخصی برای پیگیری درآمد، هزینه، اقساط و هزینه‌های تکرارشونده",
+  "description": "اپلیکیشن مدیریت مالی شخصی برای پیگیری درآمد، هزینه، اقساط و درآمد/هزینه‌های ماهانه",
   "start_url": "./index.html",
   "scope": "./",
   "display": "standalone",
   "orientation": "portrait-primary",
-  "background_color": "#f4f6f8",
-  "theme_color": "#2f6fed",
+  "background_color": "#f5f6fa",
+  "theme_color": "#4f46e5",
   "lang": "fa",
   "dir": "rtl",
   "icons": [

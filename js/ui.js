@@ -1,7 +1,11 @@
-// منطق رابط کاربری: ناوبری، مودال‌ها، فرم‌ها، رندر لیست‌ها
+// منطق رابط کاربری: ناوبری، مودال‌ها، فرم افزودن، رندر لیست‌ها
 
 let selectedMonthKey = currentMonthKey();
 let activeView = 'dashboard';
+let txFilter = 'all';
+
+// صفحه‌هایی که به ماه انتخاب‌شده وابسته‌اند (در بقیه، انتخاب ماه پنهان می‌شود)
+const MONTH_VIEWS = ['dashboard', 'transactions', 'reports'];
 
 // ---------- Toast ----------
 let toastTimer = null;
@@ -10,7 +14,7 @@ function showToast(message) {
   toast.textContent = message;
   toast.classList.add('show');
   clearTimeout(toastTimer);
-  toastTimer = setTimeout(() => toast.classList.remove('show'), 2600);
+  toastTimer = setTimeout(() => toast.classList.remove('show'), 2800);
 }
 
 // ---------- Navigation ----------
@@ -21,6 +25,8 @@ function switchView(view) {
   document.querySelectorAll('.nav-btn').forEach((btn) => {
     btn.classList.toggle('active', btn.dataset.view === view);
   });
+  document.getElementById('monthSwitcher').classList.toggle('hidden', !MONTH_VIEWS.includes(view));
+  window.scrollTo(0, 0);
   renderActiveView();
 }
 
@@ -28,7 +34,7 @@ function renderActiveView() {
   document.getElementById('currentMonthLabel').textContent = monthKeyLabel(selectedMonthKey);
   switch (activeView) {
     case 'dashboard': renderDashboard(selectedMonthKey); break;
-    case 'transactions': renderTransactionsTable(selectedMonthKey); break;
+    case 'transactions': renderTransactionsView(selectedMonthKey); break;
     case 'installments': renderInstallmentsView(); break;
     case 'recurring': renderRecurringView(); break;
     case 'reports': renderReport(selectedMonthKey); break;
@@ -42,6 +48,19 @@ function initNav() {
     switchView(btn.dataset.view);
   });
 
+  document.querySelectorAll('[data-goto]').forEach((el) => {
+    el.addEventListener('click', () => switchView(el.dataset.goto));
+  });
+
+  document.querySelectorAll('[data-quick]').forEach((btn) => {
+    btn.addEventListener('click', () => {
+      const q = btn.dataset.quick;
+      if (q === 'recurring') openAddModal({ type: 'income', kind: 'recurring' });
+      else openAddModal({ type: q, kind: 'normal' });
+    });
+  });
+
+  // در حالت راست‌به‌چپ، «ماه قبل» سمت راست است؛ ترتیب DOM همین را تضمین می‌کند
   document.getElementById('prevMonthBtn').addEventListener('click', () => {
     selectedMonthKey = shiftMonthKey(selectedMonthKey, -1);
     renderActiveView();
@@ -50,14 +69,24 @@ function initNav() {
     selectedMonthKey = shiftMonthKey(selectedMonthKey, 1);
     renderActiveView();
   });
+
+  document.getElementById('txFilter').addEventListener('click', (e) => {
+    const chip = e.target.closest('.chip');
+    if (!chip) return;
+    txFilter = chip.dataset.filter;
+    document.querySelectorAll('#txFilter .chip').forEach((c) => c.classList.toggle('active', c === chip));
+    renderActiveView();
+  });
 }
 
 // ---------- Modals ----------
 function openModal(id) {
   document.getElementById(id).classList.remove('hidden');
+  document.body.classList.add('modal-open');
 }
 function closeModal(id) {
   document.getElementById(id).classList.add('hidden');
+  if (!document.querySelector('.modal-overlay:not(.hidden)')) document.body.classList.remove('modal-open');
 }
 
 function initModalCloseHandlers() {
@@ -66,12 +95,16 @@ function initModalCloseHandlers() {
   });
   document.querySelectorAll('.modal-overlay').forEach((overlay) => {
     overlay.addEventListener('click', (e) => {
-      if (e.target === overlay) overlay.classList.add('hidden');
+      if (e.target === overlay) closeModal(overlay.id);
     });
+  });
+  document.addEventListener('keydown', (e) => {
+    if (e.key !== 'Escape') return;
+    document.querySelectorAll('.modal-overlay:not(.hidden)').forEach((o) => closeModal(o.id));
   });
 }
 
-// ---------- Confirm modal (جایگزین سفارشی و موبایل‌پسند برای confirm() مرورگر) ----------
+// ---------- Confirm modal ----------
 let confirmCallback = null;
 
 function showConfirm(message, onConfirm) {
@@ -93,14 +126,25 @@ function initConfirmModal() {
   });
 }
 
-// ---------- Category selects ----------
-function fillCategorySelect(selectEl, categoryCodes) {
-  selectEl.innerHTML = categoryCodes.map((c) => `<option value="${c}">${categoryLabel(c)}</option>`).join('');
-}
-
-function populateCategorySelects(type) {
-  const txCategory = document.getElementById('txCategory');
-  fillCategorySelect(txCategory, type === 'income' ? INCOME_CATEGORY_CODES : EXPENSE_CATEGORY_CODES);
+// ---------- Category chips ----------
+function renderCategoryGrid(type, selected) {
+  const grid = document.getElementById('categoryGrid');
+  const input = document.getElementById('txCategory');
+  const codes = (type === 'income' ? INCOME_CATEGORY_CODES : EXPENSE_CATEGORY_CODES)
+    .filter((c) => c !== 'installment');
+  const value = codes.includes(selected) ? selected : codes[0];
+  input.value = value;
+  grid.innerHTML = codes.map((c) => `
+    <button type="button" class="cat-chip ${c === value ? 'active' : ''}" data-cat="${c}">
+      <span class="cat-emoji">${categoryIcon(c)}</span><span class="cat-name">${escapeHtml(categoryLabel(c))}</span>
+    </button>`).join('');
+  grid.querySelectorAll('.cat-chip').forEach((chip) => {
+    chip.addEventListener('click', () => {
+      txFormState.categoryTouched = true;
+      input.value = chip.dataset.cat;
+      grid.querySelectorAll('.cat-chip').forEach((c) => c.classList.toggle('active', c === chip));
+    });
+  });
 }
 
 // ---------- Date field (calendar-aware: native input for Gregorian, selects for Jalali) ----------
@@ -156,9 +200,9 @@ function buildDateField(initialIso) {
     fillDays();
     daySelect.value = initialJ.jd;
 
-    container.appendChild(yearSelect);
-    container.appendChild(monthSelect);
     container.appendChild(daySelect);
+    container.appendChild(monthSelect);
+    container.appendChild(yearSelect);
   } else {
     container.classList.remove('date-select-group');
     const input = document.createElement('input');
@@ -177,142 +221,165 @@ function getDateFieldValue() {
     const g = toGregorian(jy, jm, jd);
     return `${g.gy}-${String(g.gm).padStart(2, '0')}-${String(g.gd).padStart(2, '0')}`;
   }
-  return document.getElementById('txDate').value;
+  return document.getElementById('txDate').value || todayIso();
 }
 
-// ---------- Installment mode toggle (shared between the tx-form and the dedicated installment modal) ----------
-// دقیقاً یکی از «تعداد ماه» یا «مبلغ ماهانه» از کاربر گرفته می‌شود؛ دیگری همیشه محاسبه‌شده است
-// تا هرگز مقادیر ناسازگار وارد نشوند.
-function setupInstallmentModeToggle(prefix) {
-  const toggle = document.getElementById(`${prefix}ModeToggle`);
-  const modeInput = document.getElementById(`${prefix}Mode`);
-  const monthsField = document.getElementById(`${prefix}MonthsField`);
-  const amountField = document.getElementById(`${prefix}AmountField`);
-  const monthsInput = document.getElementById(`${prefix}TotalMonths`);
-  const amountInput = document.getElementById(`${prefix}MonthlyAmount`);
+// ---------- Installment mode toggle ----------
+// دقیقاً یکی از «تعداد ماه» یا «مبلغ ماهانه» از کاربر گرفته می‌شود؛ دیگری محاسبه می‌شود.
+function setInstallmentMode(mode) {
+  document.getElementById('txInstMode').value = mode;
+  document.querySelectorAll('#txInstModeToggle .kind-toggle-btn')
+    .forEach((b) => b.classList.toggle('active', b.dataset.mode === mode));
+  document.getElementById('txInstMonthsField').classList.toggle('hidden', mode !== 'months');
+  document.getElementById('txInstAmountField').classList.toggle('hidden', mode !== 'amount');
+}
 
-  function setMode(mode) {
-    modeInput.value = mode;
-    toggle.querySelectorAll('.kind-toggle-btn').forEach((b) => b.classList.toggle('active', b.dataset.mode === mode));
-    monthsField.classList.toggle('hidden', mode !== 'months');
-    amountField.classList.toggle('hidden', mode !== 'amount');
-    monthsInput.required = mode === 'months';
-    amountInput.required = mode === 'amount';
-  }
+// ---------- Add form (یک فرم برای همه چیز: یک‌باره، ماهانه، قسطی) ----------
+const txFormState = { type: 'expense', kind: 'normal', categoryTouched: false };
 
-  toggle.querySelectorAll('.kind-toggle-btn').forEach((btn) => {
-    btn.addEventListener('click', () => setMode(btn.dataset.mode));
+function applyTxFormState() {
+  const { type, kind } = txFormState;
+  document.getElementById('txType').value = type;
+  document.getElementById('txKind').value = kind;
+
+  document.querySelectorAll('.type-toggle-btn').forEach((b) => b.classList.toggle('active', b.dataset.type === type));
+  document.querySelectorAll('#kindToggle .kind-toggle-btn').forEach((b) => {
+    b.classList.toggle('active', b.dataset.kind === kind);
+    // قسط فقط برای هزینه معنا دارد
+    if (b.dataset.kind === 'installment') b.classList.toggle('hidden', type !== 'expense');
   });
 
-  setMode('months');
-  return { setMode };
+  document.getElementById('normalFieldsGroup').classList.toggle('hidden', kind !== 'normal');
+  document.getElementById('recurringFieldsGroup').classList.toggle('hidden', kind !== 'recurring');
+  document.getElementById('installmentFieldsGroup').classList.toggle('hidden', kind !== 'installment');
+  document.getElementById('categoryField').classList.toggle('hidden', kind === 'installment');
+
+  const amountLabelKey = { normal: 'modal.fieldAmount', recurring: 'modal.fieldMonthlyAmountRec', installment: 'modal.fieldTotalAmount' }[kind];
+  document.getElementById('txAmountLabel').textContent = t(amountLabelKey);
+
+  const hintKey = {
+    normal: type === 'income' ? 'hint.normalIncome' : 'hint.normalExpense',
+    recurring: type === 'income' ? 'hint.recurringIncome' : 'hint.recurringExpense',
+    installment: 'hint.installment',
+  }[kind];
+  document.getElementById('kindHint').textContent = t(hintKey);
+
+  const placeholderKey = {
+    normal: type === 'income' ? 'placeholder.incomeTitle' : 'placeholder.txTitle',
+    recurring: type === 'income' ? 'placeholder.recIncomeTitle' : 'placeholder.recTitle',
+    installment: 'placeholder.instTitle',
+  }[kind];
+  document.getElementById('txTitle').placeholder = t(placeholderKey);
+
+  // تا وقتی کاربر خودش دسته‌ای انتخاب نکرده، دسته‌ی پیش‌فرض با نوع و تکرار عوض می‌شود
+  const currentCat = txFormState.categoryTouched ? document.getElementById('txCategory').value : '';
+  const defaultCat = type === 'income' ? 'salary' : (kind === 'recurring' ? 'housing' : 'food');
+  renderCategoryGrid(type, currentCat || defaultCat);
+  hideFormError();
 }
 
-// ---------- Transaction form ----------
+function openAddModal({ type = 'expense', kind = 'normal' } = {}) {
+  const form = document.getElementById('txForm');
+  form.reset();
+  document.getElementById('txCategory').value = '';
+  buildDateField(todayIso());
+  document.getElementById('txRecDay').value = todayDayOfMonth();
+  setInstallmentMode('months');
+  txFormState.type = kind === 'installment' ? 'expense' : type;
+  txFormState.kind = kind;
+  txFormState.categoryTouched = false;
+  applyTxFormState();
+  openModal('txModalOverlay');
+  setTimeout(() => document.getElementById('txAmount').focus(), 50);
+}
+
+function showFormError(key) {
+  const el = document.getElementById('txFormError');
+  el.textContent = t(key);
+  el.classList.remove('hidden');
+}
+function hideFormError() {
+  document.getElementById('txFormError').classList.add('hidden');
+}
+
 function initTxForm() {
   const form = document.getElementById('txForm');
-  const typeInput = document.getElementById('txType');
-  const kindInput = document.getElementById('txKind');
-  const typeToggleBtns = document.querySelectorAll('.type-toggle-btn');
-  const kindToggle = document.getElementById('kindToggle');
-  const kindToggleBtns = kindToggle.querySelectorAll('.kind-toggle-btn');
-
-  const fieldGroups = {
-    normal: document.getElementById('normalFieldsGroup'),
-    installment: document.getElementById('installmentFieldsGroup'),
-    recurring: document.getElementById('recurringFieldsGroup'),
-  };
-  const fieldsByKind = {
-    normal: ['txAmount'],
-    installment: ['txInstTotalAmount'],
-    recurring: ['txRecAmount', 'txRecDay'],
-  };
-  const txInstModeCtl = setupInstallmentModeToggle('txInst');
 
   document.getElementById('fabAddTx').addEventListener('click', () => {
-    form.reset();
-    buildDateField(todayIso());
-    // ترتیب مهم است: setMode روی required فیلدهای قسط اثر می‌گذارد،
-    // پس باید قبل از setTxKind اجرا شود تا setTxKind نتیجه‌ی نهایی و درست را ثبت کند
-    txInstModeCtl.setMode('months');
-    setTxType('expense');
-    setTxKind('normal');
-    openModal('txModalOverlay');
+    if (activeView === 'recurring') openAddModal({ type: 'income', kind: 'recurring' });
+    else if (activeView === 'installments') openAddModal({ type: 'expense', kind: 'installment' });
+    else openAddModal({ type: 'expense', kind: 'normal' });
   });
+  document.getElementById('addRecurringIncomeBtn').addEventListener('click', () => openAddModal({ type: 'income', kind: 'recurring' }));
+  document.getElementById('addRecurringExpenseBtn').addEventListener('click', () => openAddModal({ type: 'expense', kind: 'recurring' }));
+  document.getElementById('addInstallmentBtn').addEventListener('click', () => openAddModal({ type: 'expense', kind: 'installment' }));
 
-  function setTxType(type) {
-    typeInput.value = type;
-    typeToggleBtns.forEach((b) => b.classList.toggle('active', b.dataset.type === type));
-    kindToggle.classList.toggle('hidden', type !== 'expense');
-    if (type !== 'expense') setTxKind('normal');
-    populateCategorySelects(type);
-  }
-
-  function setTxKind(kind) {
-    kindInput.value = kind;
-    kindToggleBtns.forEach((b) => b.classList.toggle('active', b.dataset.kind === kind));
-    Object.keys(fieldGroups).forEach((k) => fieldGroups[k].classList.toggle('hidden', k !== kind));
-    Object.keys(fieldsByKind).forEach((k) => {
-      fieldsByKind[k].forEach((id) => {
-        const el = document.getElementById(id);
-        if (el) el.required = k === kind;
-      });
+  document.querySelectorAll('.type-toggle-btn').forEach((btn) => {
+    btn.addEventListener('click', () => {
+      if (txFormState.type === btn.dataset.type) return;
+      txFormState.type = btn.dataset.type;
+      if (txFormState.type === 'income' && txFormState.kind === 'installment') txFormState.kind = 'normal';
+      txFormState.categoryTouched = false;
+      applyTxFormState();
     });
-    if (kind === 'installment') {
-      txInstModeCtl.setMode(document.getElementById('txInstMode').value);
-    } else {
-      document.getElementById('txInstTotalMonths').required = false;
-      document.getElementById('txInstMonthlyAmount').required = false;
-    }
-    if (kind === 'recurring') {
-      fillCategorySelect(document.getElementById('txRecCategory'), EXPENSE_CATEGORY_CODES);
-    }
-  }
-
-  typeToggleBtns.forEach((btn) => {
-    btn.addEventListener('click', () => setTxType(btn.dataset.type));
   });
-  kindToggleBtns.forEach((btn) => {
-    btn.addEventListener('click', () => setTxKind(btn.dataset.kind));
+  document.querySelectorAll('#kindToggle .kind-toggle-btn').forEach((btn) => {
+    btn.addEventListener('click', () => {
+      txFormState.kind = btn.dataset.kind;
+      applyTxFormState();
+    });
+  });
+  document.querySelectorAll('#txInstModeToggle .kind-toggle-btn').forEach((btn) => {
+    btn.addEventListener('click', () => setInstallmentMode(btn.dataset.mode));
   });
 
   form.addEventListener('submit', (e) => {
     e.preventDefault();
-    const title = document.getElementById('txTitle').value.trim();
-    const kind = kindInput.value;
+    const { type, kind } = txFormState;
+    const amount = Number(document.getElementById('txAmount').value);
+    const category = document.getElementById('txCategory').value;
+    let title = document.getElementById('txTitle').value.trim();
+
+    if (!(amount > 0)) {
+      showFormError('error.amount');
+      document.getElementById('txAmount').focus();
+      return;
+    }
 
     if (kind === 'installment') {
       const mode = document.getElementById('txInstMode').value;
+      const months = Number(document.getElementById('txInstTotalMonths').value);
+      const monthly = Number(document.getElementById('txInstMonthlyAmount').value);
+      if (mode === 'months' && !(months >= 1)) { showFormError('error.months'); return; }
+      if (mode === 'amount' && !(monthly > 0)) { showFormError('error.monthlyAmount'); return; }
       Installments.add({
-        title,
-        totalAmount: document.getElementById('txInstTotalAmount').value,
+        title: title || t('installments.defaultTitle'),
+        totalAmount: amount,
         mode,
-        totalMonths: mode === 'months' ? document.getElementById('txInstTotalMonths').value : null,
-        monthlyAmount: mode === 'amount' ? document.getElementById('txInstMonthlyAmount').value : null,
+        totalMonths: mode === 'months' ? months : null,
+        monthlyAmount: mode === 'amount' ? monthly : null,
       });
       showToast(t('installments.addedToast'));
       selectedMonthKey = currentMonthKey();
     } else if (kind === 'recurring') {
-      Recurring.add({
-        title,
-        amount: document.getElementById('txRecAmount').value,
-        dayOfMonth: document.getElementById('txRecDay').value,
-        category: document.getElementById('txRecCategory').value,
+      const day = Number(document.getElementById('txRecDay').value);
+      if (!(day >= 1 && day <= 31)) { showFormError('error.day'); return; }
+      const item = Recurring.add({
+        type,
+        title: title || categoryLabel(category),
+        amount,
+        dayOfMonth: day,
+        category,
       });
-      showToast(t('recurring.addedToast'));
+      showToast(Recurring.isGeneratedThisMonth(item)
+        ? t('recurring.addedToastNow')
+        : t('recurring.addedToastLater').replace('{day}', item.dayOfMonth));
       selectedMonthKey = currentMonthKey();
     } else {
       const date = getDateFieldValue();
-      Transactions.add({
-        type: typeInput.value,
-        title,
-        amount: document.getElementById('txAmount').value,
-        date,
-        category: document.getElementById('txCategory').value,
-      });
+      Transactions.add({ type, title: title || categoryLabel(category), amount, date, category });
       showToast(t('toast.txAdded'));
-      const txMonth = monthKeyOf(date);
-      if (txMonth !== selectedMonthKey) selectedMonthKey = txMonth;
+      selectedMonthKey = monthKeyOf(date);
     }
 
     closeModal('txModalOverlay');
@@ -320,35 +387,14 @@ function initTxForm() {
   });
 }
 
-// ---------- Transactions table ----------
-function renderTransactionsTable(monthKey) {
-  const tbody = document.getElementById('transactionsTbody');
-  const emptyHint = document.getElementById('transactionsEmptyHint');
-  const items = Transactions.forMonth(monthKey);
-  tbody.innerHTML = '';
+// ---------- Transactions ----------
+function renderTransactionsView(monthKey) {
+  const list = document.getElementById('transactionsList');
+  let items = Transactions.forMonth(monthKey);
+  if (txFilter !== 'all') items = items.filter((tx) => tx.type === txFilter);
+  renderTxList(list, items, true);
 
-  if (items.length === 0) {
-    document.getElementById('transactionsTable').hidden = true;
-    emptyHint.hidden = false;
-    return;
-  }
-  document.getElementById('transactionsTable').hidden = false;
-  emptyHint.hidden = true;
-
-  items.forEach((tx) => {
-    const tr = document.createElement('tr');
-    tr.innerHTML = `
-      <td>${escapeHtml(tx.title)}</td>
-      <td>${escapeHtml(categoryLabel(tx.category))}</td>
-      <td>${formatDateDisplay(tx.date)}</td>
-      <td class="amount-${tx.type}">${formatCurrency(tx.amount)}</td>
-      <td>${tx.type === 'income' ? t('common.income') : t('common.expense')}</td>
-      <td><button class="row-delete-btn" data-tx-id="${tx.id}" title="${t('common.delete')}">✕</button></td>
-    `;
-    tbody.appendChild(tr);
-  });
-
-  tbody.querySelectorAll('.row-delete-btn').forEach((btn) => {
+  list.querySelectorAll('.row-delete-btn').forEach((btn) => {
     btn.addEventListener('click', () => {
       showConfirm(t('transactions.deleteConfirm'), () => {
         Transactions.remove(btn.dataset.txId);
@@ -360,31 +406,6 @@ function renderTransactionsTable(monthKey) {
 }
 
 // ---------- Installments ----------
-function initInstallmentForm() {
-  const instModeCtl = setupInstallmentModeToggle('inst');
-
-  document.getElementById('addInstallmentBtn').addEventListener('click', () => {
-    document.getElementById('installmentForm').reset();
-    instModeCtl.setMode('months');
-    openModal('installmentModalOverlay');
-  });
-
-  document.getElementById('installmentForm').addEventListener('submit', (e) => {
-    e.preventDefault();
-    const mode = document.getElementById('instMode').value;
-    Installments.add({
-      title: document.getElementById('instTitle').value.trim(),
-      totalAmount: document.getElementById('instTotalAmount').value,
-      mode,
-      totalMonths: mode === 'months' ? document.getElementById('instTotalMonths').value : null,
-      monthlyAmount: mode === 'amount' ? document.getElementById('instMonthlyAmount').value : null,
-    });
-    closeModal('installmentModalOverlay');
-    showToast(t('installments.addedToast'));
-    renderActiveView();
-  });
-}
-
 function renderInstallmentsView() {
   const activeList = document.getElementById('activeInstallmentsList');
   const paidList = document.getElementById('paidInstallmentsList');
@@ -393,7 +414,7 @@ function renderInstallmentsView() {
   const paid = all.filter((i) => i.status === 'paid');
 
   document.getElementById('activeInstallmentsEmptyHint').hidden = active.length > 0;
-  document.getElementById('paidInstallmentsEmptyHint').hidden = paid.length > 0;
+  document.getElementById('paidInstallmentsPanel').classList.toggle('hidden', paid.length === 0);
 
   activeList.innerHTML = active.map((i) => installmentCardHtml(i)).join('');
   paidList.innerHTML = paid.map((i) => installmentCardHtml(i)).join('');
@@ -413,24 +434,20 @@ function installmentCardHtml(inst) {
   const paidAmount = Math.max(0, inst.totalAmount - inst.remainingAmount);
   const progressPct = inst.totalAmount > 0 ? Math.round((paidAmount / inst.totalAmount) * 100) : 100;
   const remainingMonths = Installments.estimatedRemainingMonths(inst);
-  const chargedThisMonth = inst.paidMonthKeys.includes(currentMonthKey());
-  const statusNote = inst.status === 'active'
-    ? `· ${chargedThisMonth ? t('installments.paidThisMonth') : t('installments.notPaidThisMonth')}`
-    : '';
+  const sub = inst.status === 'active'
+    ? `${formatCurrency(inst.monthlyAmount)} ${t('installments.perMonth')} · ${remainingMonths} ${t('installments.monthsLeft')}`
+    : t('badge.paid');
   return `
     <div class="item-card installment-card" data-id="${inst.id}" role="button" tabindex="0">
+      <span class="tx-icon expense">🧾</span>
       <div class="item-info">
         <span class="item-title">${escapeHtml(inst.title)}</span>
-        <span class="item-sub">
-          ${t('installments.remainingLabel')}: <b>${formatCurrency(inst.remainingAmount)}</b> ·
-          ${formatCurrency(inst.monthlyAmount)} ${t('installments.perMonth')}
-          ${inst.status === 'active' ? `· ~${remainingMonths} ${t('installments.months')}` : ''}
-          ${statusNote}
-        </span>
+        <span class="item-sub">${sub}</span>
         <div class="item-progress"><div class="item-progress-fill" style="width:${progressPct}%"></div></div>
       </div>
-      <div class="item-actions">
-        <span class="badge ${inst.status}">${inst.status === 'active' ? t('badge.active') : t('badge.paid')}</span>
+      <div class="item-side">
+        <span class="item-amount">${formatCurrency(inst.remainingAmount)}</span>
+        <span class="item-side-label">${t('installments.remainingLabel')}</span>
       </div>
     </div>
   `;
@@ -478,54 +495,60 @@ function openInstallmentDetail(id) {
   openModal('installmentDetailModalOverlay');
 }
 
-// ---------- Recurring ----------
-function initRecurringForm() {
-  document.getElementById('addRecurringBtn').addEventListener('click', () => {
-    document.getElementById('recurringForm').reset();
-    fillCategorySelect(document.getElementById('recCategory'), EXPENSE_CATEGORY_CODES);
-    openModal('recurringModalOverlay');
-  });
+// ---------- Monthly (recurring income & expense) ----------
+function recurringCardHtml(r) {
+  let status;
+  if (!r.active) status = t('badge.inactive');
+  else if (Recurring.isGeneratedThisMonth(r)) status = `✓ ${t('recurring.doneThisMonth')}`;
+  else status = t('recurring.upcoming').replace('{day}', r.dayOfMonth);
 
-  document.getElementById('recurringForm').addEventListener('submit', (e) => {
-    e.preventDefault();
-    Recurring.add({
-      title: document.getElementById('recTitle').value.trim(),
-      amount: document.getElementById('recAmount').value,
-      dayOfMonth: document.getElementById('recDay').value,
-      category: document.getElementById('recCategory').value,
-    });
-    closeModal('recurringModalOverlay');
-    showToast(t('recurring.addedToast'));
-    renderActiveView();
-  });
+  return `
+    <div class="item-card ${r.active ? '' : 'inactive'}">
+      <span class="tx-icon ${r.type}">${categoryIcon(r.category)}</span>
+      <div class="item-info">
+        <span class="item-title">${escapeHtml(r.title)}</span>
+        <span class="item-sub">${t('recurring.everyMonthDay').replace('{day}', r.dayOfMonth)} · ${status}</span>
+      </div>
+      <div class="item-side">
+        <span class="item-amount ${r.type}">${formatCurrency(r.amount)}</span>
+        <div class="item-actions">
+          <label class="switch" title="${r.active ? t('recurring.toggleDeactivate') : t('recurring.toggleActivate')}">
+            <input type="checkbox" class="recurring-toggle" data-id="${r.id}" ${r.active ? 'checked' : ''}>
+            <span class="switch-track"></span>
+          </label>
+          <button class="row-delete-btn recurring-delete-btn" data-id="${r.id}" title="${t('common.delete')}">✕</button>
+        </div>
+      </div>
+    </div>
+  `;
 }
 
 function renderRecurringView() {
-  const list = document.getElementById('recurringList');
-  const items = Recurring.all();
-  document.getElementById('recurringEmptyHint').hidden = items.length > 0;
+  const income = Recurring.byType('income');
+  const expense = Recurring.byType('expense');
 
-  list.innerHTML = items.map((r) => `
-    <div class="item-card">
-      <div class="item-info">
-        <span class="item-title">${escapeHtml(r.title)}</span>
-        <span class="item-sub">${formatCurrency(r.amount)} · ${t('recurring.dayLabel')} ${r.dayOfMonth} · ${escapeHtml(categoryLabel(r.category))}</span>
-      </div>
-      <div class="item-actions">
-        <span class="badge ${r.active ? 'active' : 'inactive'}">${r.active ? t('badge.active') : t('badge.inactive')}</span>
-        <button class="btn btn-secondary btn-small recurring-toggle-btn" data-id="${r.id}">${r.active ? t('recurring.toggleDeactivate') : t('recurring.toggleActivate')}</button>
-        <button class="row-delete-btn recurring-delete-btn" data-id="${r.id}" title="${t('common.delete')}">✕</button>
-      </div>
-    </div>
-  `).join('');
+  document.getElementById('recurringIncomeList').innerHTML = income.map(recurringCardHtml).join('');
+  document.getElementById('recurringExpenseList').innerHTML = expense.map(recurringCardHtml).join('');
+  document.getElementById('recurringIncomeEmptyHint').hidden = income.length > 0;
+  document.getElementById('recurringExpenseEmptyHint').hidden = expense.length > 0;
 
-  list.querySelectorAll('.recurring-toggle-btn').forEach((btn) => {
-    btn.addEventListener('click', () => {
-      Recurring.toggleActive(btn.dataset.id);
+  const incomeTotal = Recurring.monthlyTotal('income');
+  const expenseTotal = Recurring.monthlyTotal('expense')
+    + Installments.active().reduce((s, i) => s + i.monthlyAmount, 0);
+  document.getElementById('recNetIncome').textContent = formatCurrency(incomeTotal);
+  document.getElementById('recNetExpense').textContent = formatCurrency(expenseTotal);
+  const leftEl = document.getElementById('recNetLeft');
+  leftEl.textContent = formatCurrency(incomeTotal - expenseTotal);
+  leftEl.className = incomeTotal - expenseTotal < 0 ? 'expense' : '';
+
+  const view = document.getElementById('view-recurring');
+  view.querySelectorAll('.recurring-toggle').forEach((input) => {
+    input.addEventListener('change', () => {
+      Recurring.toggleActive(input.dataset.id);
       renderActiveView();
     });
   });
-  list.querySelectorAll('.recurring-delete-btn').forEach((btn) => {
+  view.querySelectorAll('.recurring-delete-btn').forEach((btn) => {
     btn.addEventListener('click', () => {
       showConfirm(t('recurring.deleteConfirm'), () => {
         Recurring.remove(btn.dataset.id);
@@ -557,7 +580,6 @@ function initSettingsForm() {
     });
     closeModal('settingsModalOverlay');
     applyStaticTranslations();
-    populateCategorySelects(document.getElementById('txType').value);
     selectedMonthKey = currentMonthKey();
     renderActiveView();
     showToast(t('toast.settingsSaved'));

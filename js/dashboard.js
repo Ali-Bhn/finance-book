@@ -1,10 +1,10 @@
-// رندر داشبورد: کارت‌های خلاصه، نمودار دسته‌بندی، آخرین تراکنش‌ها
+// رندر صفحه‌ی خانه: مانده‌ی ماه، موارد ثابت ماهانه، آخرین تراکنش‌ها و نمودار
 
 let categoryChartInstance = null;
 
 const CHART_COLORS = [
-  '#2f6fed', '#1a9c6b', '#d9455f', '#b1740f', '#6c4fd1',
-  '#0891b2', '#c2410c', '#65a30d', '#be185d', '#4338ca',
+  '#4f46e5', '#10b981', '#f43f5e', '#f59e0b', '#8b5cf6',
+  '#06b6d4', '#ea580c', '#84cc16', '#ec4899', '#64748b',
 ];
 
 function renderDashboard(monthKey) {
@@ -12,25 +12,23 @@ function renderDashboard(monthKey) {
 
   document.getElementById('statIncome').textContent = formatCurrency(summary.income);
   document.getElementById('statExpense').textContent = formatCurrency(summary.expense);
-  document.getElementById('statBalance').textContent = formatCurrency(summary.balance);
+  const balanceEl = document.getElementById('statBalance');
+  balanceEl.textContent = formatCurrency(summary.balance);
+  balanceEl.classList.toggle('negative', summary.balance < 0);
 
-  const activeInstallmentsTotal = Installments.active()
-    .reduce((s, i) => s + i.monthlyAmount, 0);
-  document.getElementById('statInstallments').textContent = formatCurrency(activeInstallmentsTotal);
-
-  const recurringThisMonth = Transactions.forMonth(monthKey)
-    .filter((t) => t.source === 'recurring')
-    .reduce((s, t) => s + t.amount, 0);
-  document.getElementById('statRecurring').textContent = formatCurrency(recurringThisMonth);
+  const installmentsTotal = Installments.active().reduce((s, i) => s + i.monthlyAmount, 0);
+  document.getElementById('statFixedIncome').textContent = formatCurrency(Recurring.monthlyTotal('income'));
+  document.getElementById('statFixedExpense').textContent = formatCurrency(Recurring.monthlyTotal('expense'));
+  document.getElementById('statInstallments').textContent = formatCurrency(installmentsTotal);
 
   renderCategoryChart(monthKey);
-  renderRecentTransactions(monthKey);
+  renderTxList(document.getElementById('recentTransactionsList'), Transactions.forMonth(monthKey).slice(0, 6), false);
 }
 
 function renderCategoryChart(monthKey) {
   const breakdown = Transactions.categoryBreakdownForMonth(monthKey);
-  const codes = Object.keys(breakdown);
-  const labels = codes.map(categoryLabel);
+  const codes = Object.keys(breakdown).sort((a, b) => breakdown[b] - breakdown[a]);
+  const labels = codes.map((c) => `${categoryIcon(c)} ${categoryLabel(c)}`);
   const values = codes.map((c) => breakdown[c]);
   const canvas = document.getElementById('categoryChart');
   const emptyHint = document.getElementById('chartEmptyHint');
@@ -40,12 +38,12 @@ function renderCategoryChart(monthKey) {
     categoryChartInstance = null;
   }
 
-  if (labels.length === 0) {
-    canvas.hidden = true;
+  if (labels.length === 0 || typeof Chart === 'undefined') {
+    canvas.parentElement.hidden = true;
     emptyHint.hidden = false;
     return;
   }
-  canvas.hidden = false;
+  canvas.parentElement.hidden = false;
   emptyHint.hidden = true;
 
   categoryChartInstance = new Chart(canvas, {
@@ -60,10 +58,12 @@ function renderCategoryChart(monthKey) {
     },
     options: {
       responsive: true,
+      maintainAspectRatio: false,
+      cutout: '68%',
       plugins: {
         legend: {
           position: 'bottom',
-          labels: { font: { family: 'Vazirmatn' }, padding: 14 },
+          labels: { font: { family: 'Vazirmatn' }, padding: 12, usePointStyle: true, boxWidth: 8 },
         },
         tooltip: {
           callbacks: {
@@ -75,27 +75,35 @@ function renderCategoryChart(monthKey) {
   });
 }
 
-function renderRecentTransactions(monthKey) {
-  const list = document.getElementById('recentTransactionsList');
-  const items = Transactions.forMonth(monthKey).slice(0, 8);
-  list.innerHTML = '';
+// لیست تراکنش‌ها به شکل کارت؛ در صفحه‌ی تراکنش‌ها دکمه‌ی حذف هم دارد
+function renderTxList(container, items, withDelete) {
+  container.innerHTML = '';
 
   if (items.length === 0) {
-    list.innerHTML = `<p class="empty-hint">${t('dashboard.txEmpty')}</p>`;
+    container.innerHTML = `
+      <div class="empty-state">
+        <div class="empty-emoji">🗂️</div>
+        <p>${t('dashboard.txEmpty')}</p>
+      </div>`;
     return;
   }
 
   items.forEach((tx) => {
     const row = document.createElement('div');
     row.className = 'tx-row';
+    let tag = '';
+    if (tx.source === 'recurring') tag = `<span class="tag">${t('tag.monthly')}</span>`;
+    if (tx.source === 'installment') tag = `<span class="tag">${t('tag.installment')}</span>`;
     row.innerHTML = `
+      <span class="tx-icon ${tx.type}">${categoryIcon(tx.category)}</span>
       <div class="tx-info">
-        <span class="tx-title">${escapeHtml(tx.title)}</span>
+        <span class="tx-title">${escapeHtml(tx.title)} ${tag}</span>
         <span class="tx-meta">${escapeHtml(categoryLabel(tx.category))} · ${formatDateDisplay(tx.date)}</span>
       </div>
-      <div class="tx-amount ${tx.type}">${tx.type === 'income' ? '+' : '-'} ${formatCurrency(tx.amount)}</div>
+      <div class="tx-amount ${tx.type}">${tx.type === 'income' ? '+' : '−'} ${formatCurrency(tx.amount)}</div>
+      ${withDelete ? `<button class="row-delete-btn" data-tx-id="${tx.id}" title="${t('common.delete')}">✕</button>` : ''}
     `;
-    list.appendChild(row);
+    container.appendChild(row);
   });
 }
 

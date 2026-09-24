@@ -56,6 +56,21 @@ const Transactions = {
     return { income, expense, balance: income - expense, items };
   },
 
+  // نسخه‌های قبلی، تراکنش‌های تکرارشونده را در حالت تقویم شمسی با تاریخ شمسی (مثلاً 1403-07-05)
+  // در فیلدی ذخیره می‌کردند که باید میلادی باشد. این تابع یک بار آن تاریخ‌ها را به میلادی تبدیل می‌کند.
+  repairJalaliDates() {
+    let changed = false;
+    store.data.transactions.forEach((tx) => {
+      const [y, m, d] = tx.date.split('-').map(Number);
+      if (y < 1700) {
+        const g = toGregorian(y, m, d);
+        tx.date = `${g.gy}-${String(g.gm).padStart(2, '0')}-${String(g.gd).padStart(2, '0')}`;
+        changed = true;
+      }
+    });
+    if (changed) store.persist();
+  },
+
   categoryBreakdownForMonth(monthKey) {
     const items = this.forMonth(monthKey).filter((t) => t.type === 'expense');
     const map = {};
