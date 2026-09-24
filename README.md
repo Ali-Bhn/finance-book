@@ -1,6 +1,6 @@
 # Finance Book — Personal Finance Manager
 
-A single-page personal finance web app for tracking income, expenses, installments, and recurring monthly expenses. All data is stored only in your own browser (`localStorage`) — no server or backend required.
+A single-page personal finance web app for tracking income, expenses, installments, and fixed monthly income/expenses (salary, rent, subscriptions…). All data is stored only in your own browser (`localStorage`) — no server or backend required.
 
 ## Running the project
 
@@ -21,7 +21,7 @@ Then open the address printed in the terminal (e.g. `http://localhost:8080`) in 
 ## Project structure
 
 ```
-index.html          Main page skeleton and all modals/forms
+index.html          Main page skeleton, the single "Add" form, and other modals
 css/style.css        Full stylesheet — responsive, RTL/LTR-aware
 js/storage.js         localStorage persistence layer
 js/settings.js         User settings storage (language, currency, calendar type)
@@ -30,10 +30,10 @@ js/i18n.js               Translation dictionary (Persian/English/German) and tra
 js/utils.js            Date/currency/category helpers (settings-aware)
 js/transactions.js     Transaction CRUD logic and monthly summary calculation
 js/installments.js     Installment tracking logic (balance-based, not month-count-based)
-js/recurring.js        Recurring expense logic and automatic monthly transaction generation
-js/dashboard.js        Dashboard rendering and category breakdown chart (Chart.js)
+js/recurring.js        Monthly (recurring) income & expense logic and automatic monthly transaction generation
+js/dashboard.js        Home screen rendering, transaction list rendering, and category chart (Chart.js)
 js/reports.js          Monthly report rendering and PDF export
-js/ui.js               Navigation, modals, forms, and list rendering
+js/ui.js               Navigation, modals, the Add form, and per-view rendering
 js/app.js              Main application bootstrap + service worker registration
 manifest.json        PWA manifest (name, icons, theme colors, display mode)
 sw.js                 Service worker — caches the app shell for offline use
@@ -43,15 +43,16 @@ CNAME                 Custom subdomain for GitHub Pages (see "Deploying" below)
 
 ## Features
 
-- Record income/expense transactions with title, amount, date, and category
-- Automatic monthly totals (income, expenses, balance) with the ability to switch between months
+- **One simple "Add" form** for everything: pick Expense or Income, then how often — *Once*, *Every month*, or *Installment* (expense only). Amount comes first, the title is optional, and categories are tappable icon chips.
+- **Monthly income and expenses**: add things like salary, subsidy/pension, rent received, rent paid, internet or subscriptions once, and they're recorded automatically on the chosen day of every month. The "Monthly" tab lists monthly income and monthly expenses separately, each with an on/off switch, and shows how much is left over each month after fixed expenses and installments.
+- Home screen with this month's balance, income and expenses, quick-add buttons, fixed monthly totals, recent transactions, and a category chart
+- Fully responsive (tested from 320px phones up to desktop, portrait and landscape): bottom tab bar on phones and tablets, top navigation on desktop, bottom-sheet forms on phones, and money amounts that never break in the middle of a number
 - **Installment tracking**: enter the total remaining amount, then choose either "I know the remaining months" or "I know the monthly amount" — whichever you don't know is calculated automatically, so the numbers can never be inconsistent. The remaining balance is decreased each month (the last payment is automatically shrunk to land exactly on zero), and installments are marked "paid off" once settled. Click any installment card to see a full detail view (total amount, remaining balance, amount paid, months paid, estimated months left, etc.).
-- **Recurring expenses** (e.g. rent, subscriptions) that are automatically added as a transaction on the specified day of each month
-- Dashboard with summary cards and a doughnut chart of expenses by category
+- **Installment options (both optional)**: set the day of the month the installment is deducted (it's recorded on that day, not immediately), and tick "I already paid this month's installment" so deductions start next month. A live preview in the form shows the monthly amount, number of payments, and when the first deduction happens. If neither is set, the installment is deducted right away as before.
+- **Missed months are caught up**: new installments and monthly items record every month they were due, even if the app wasn't opened during that month.
 - PDF export of any month's report
 - **User settings** (⚙ icon in the top bar): language (Persian/English/German), currency (Toman, Rial, USD, EUR, GBP), and calendar system (Jalali or Gregorian) — every part of the app (text, amount formatting, dates, month names) updates accordingly
 - Custom in-app confirmation modal for all delete actions (transactions, installments, recurring expenses) instead of the browser's native `confirm()` dialog — consistent styling and mobile-friendly
-- Responsive layout: the top navigation collapses into a horizontally scrollable tab strip on narrow screens, and action button labels hide on small phones to save space
 
 ## Technical notes
 

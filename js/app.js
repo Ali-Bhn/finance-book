@@ -4,6 +4,7 @@ document.addEventListener('DOMContentLoaded', () => {
   applyStaticTranslations();
 
   // در ابتدای هر بار باز شدن برنامه، اقساط و هزینه‌های تکرارشونده‌ی ماه جاری را همگام می‌کند
+  Transactions.repairJalaliDates();
   Installments.syncAllForCurrentMonth();
   Recurring.syncAllForCurrentMonth();
 
@@ -11,12 +12,9 @@ document.addEventListener('DOMContentLoaded', () => {
   initModalCloseHandlers();
   initConfirmModal();
   initTxForm();
-  initInstallmentForm();
-  initRecurringForm();
   initSettingsForm();
   initReportHandlers();
 
-  populateCategorySelects('expense');
   switchView('dashboard');
 
   // بار اول که کاربر وارد سایت می‌شود، از او می‌خواهیم زبان/واحد پول/تقویم را انتخاب کند
