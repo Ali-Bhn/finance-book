@@ -263,7 +263,14 @@ const Sync = {
         try {
           await this.adapter.saveDoc({ data }, remote.rev);
         } catch (e) {
-          if (e && e.code === 'conflict') continue;
+          // اگر دستگاه دیگری هم‌زمان نوشته باشد، قوانین سرور (rev باید دقیقاً یکی بیشتر باشد) نوشتن را رد می‌کنند
+          // و Firebase آن را permission-denied/aborted گزارش می‌کند؛ دوباره می‌خوانیم، ادغام می‌کنیم و تکرار می‌کنیم.
+          // اگر مشکل واقعاً دسترسی باشد، همه‌ی تلاش‌ها رد می‌شوند و خطا نمایش داده می‌شود.
+          const retryable = e && ['conflict', 'permission-denied', 'aborted', 'failed-precondition'].includes(e.code);
+          if (retryable && attempt < 3) {
+            await new Promise((r) => setTimeout(r, 200 + Math.random() * 600));
+            continue;
+          }
           throw e;
         }
       }
