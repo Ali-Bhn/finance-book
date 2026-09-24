@@ -93,14 +93,15 @@ function initModalCloseHandlers() {
   document.querySelectorAll('[data-close-modal]').forEach((btn) => {
     btn.addEventListener('click', () => closeModal(btn.dataset.closeModal));
   });
+  // مودالی که data-locked دارد (مثل نمایش کلید بازیابی) با کلیک بیرون یا Esc بسته نمی‌شود
   document.querySelectorAll('.modal-overlay').forEach((overlay) => {
     overlay.addEventListener('click', (e) => {
-      if (e.target === overlay) closeModal(overlay.id);
+      if (e.target === overlay && !overlay.dataset.locked) closeModal(overlay.id);
     });
   });
   document.addEventListener('keydown', (e) => {
     if (e.key !== 'Escape') return;
-    document.querySelectorAll('.modal-overlay:not(.hidden)').forEach((o) => closeModal(o.id));
+    document.querySelectorAll('.modal-overlay:not(.hidden)').forEach((o) => { if (!o.dataset.locked) closeModal(o.id); });
   });
 }
 

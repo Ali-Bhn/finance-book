@@ -104,6 +104,8 @@ const Installments = {
 
     const chargeAmount = Math.min(inst.monthlyAmount, inst.remainingAmount);
     Transactions.add({
+      // شناسه‌ی ثابت: اگر دو دستگاه هم‌زمان قسط یک ماه را ثبت کنند، بعد از همگام‌سازی تکراری نمی‌شود
+      id: `inst-${inst.id}-${monthKey}`,
       type: 'expense',
       title: `${t('category.installment')}: ${inst.title}`,
       amount: chargeAmount,

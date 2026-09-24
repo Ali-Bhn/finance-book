@@ -35,6 +35,13 @@ js/dashboard.js        Home screen rendering, transaction list rendering, and ca
 js/reports.js          Monthly report rendering and PDF export
 js/ui.js               Navigation, modals, the Add form, and per-view rendering
 js/app.js              Main application bootstrap + service worker registration
+js/firebase-config.js  Firebase web config for the optional sign-in (null = feature hidden)
+js/vault.js            End-to-end encryption (Web Crypto: AES-256-GCM, PBKDF2, HKDF, recovery key)
+js/merge.js            Pure merge of two devices' data (per-record last-writer-wins + tombstones)
+js/sync.js             Optional sign-in/sync engine (state machine, encrypt → merge → save)
+js/cloud.js            Firebase adapter (Auth + Firestore), loaded only when needed
+js/account.js          Account & sync UI
+firestore.rules        Firestore security rules (each user can only access their own document)
 manifest.json        PWA manifest (name, icons, theme colors, display mode)
 sw.js                 Service worker — caches the app shell for offline use
 icons/                 App icons (192x192, 512x512, 180x180 for iOS)
@@ -53,6 +60,28 @@ CNAME                 Custom subdomain for GitHub Pages (see "Deploying" below)
 - PDF export of any month's report
 - **User settings** (⚙ icon in the top bar): language (Persian/English/German), currency (Toman, Rial, USD, EUR, GBP), and calendar system (Jalali or Gregorian) — every part of the app (text, amount formatting, dates, month names) updates accordingly
 - Custom in-app confirmation modal for all delete actions (transactions, installments, recurring expenses) instead of the browser's native `confirm()` dialog — consistent styling and mobile-friendly
+
+## Optional sign-in & sync (end-to-end encrypted)
+
+Signing in is **optional**. Without it, the app works exactly as before: all data stays in this browser only, and the app never contacts any server. With it, data is available on every device the user signs in on.
+
+**How it works**
+- Sign-in with Google or email + password (Firebase Authentication; email accounts must confirm their email).
+- On first sign-in the user creates a **data password**. A random 256-bit data key encrypts everything (AES-256-GCM); that key is locked with the data password (PBKDF2-SHA256, 600,000 iterations) and separately with a **recovery key** (160-bit, shown once as `XXXX-XXXX-…`, HKDF-SHA256).
+- Only the locked key and the ciphertext are stored in Firestore (`users/{uid}`) — never the password, the recovery key or any readable data. Not even the Firebase project owner can read it.
+- The user's ID is bound into the encryption (AES-GCM additional data), so ciphertext can't be moved between accounts.
+- Each device keeps the data key as a **non-extractable** CryptoKey in IndexedDB, so the password is entered once per device.
+- Changes are merged per record (newest wins, deletions are tracked), installment/monthly auto-charges use deterministic IDs so two devices never double-charge, and writes use a revision check to avoid overwriting another device.
+- Signing out asks whether to keep or remove the data on this device. If a *different* account signs in on a device that holds another account's data, that data is never uploaded to the new account.
+- Forgot the data password → recover with the recovery key and choose a new one. Lost both → the cloud copy can't be decrypted, but data on already-synced devices is intact.
+- A Content-Security-Policy restricts scripts to this site, the library CDNs and Google/Firebase sign-in.
+
+**Setting up Firebase (one time, by the site owner)**
+1. [console.firebase.google.com](https://console.firebase.google.com) → *Add project*.
+2. *Build → Authentication → Sign-in method*: enable **Google** and **Email/Password**. Under *Settings → Authorized domains*, add your domain (e.g. `finance.bahadoran.de`).
+3. *Build → Firestore Database → Create database* (e.g. `europe-west3`, production mode). Open the *Rules* tab, paste the contents of [`firestore.rules`](firestore.rules) and *Publish*.
+4. *Project settings → Your apps → Web (`</>`)*: register an app and copy the `firebaseConfig` object into `js/firebase-config.js` (`window.FIREBASE_CONFIG = { ... }`). These values are not secret; security comes from the rules and the encryption.
+5. Bump `CACHE_NAME` in `sw.js` and deploy.
 
 ## Technical notes
 

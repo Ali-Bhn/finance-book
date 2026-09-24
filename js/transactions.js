@@ -1,9 +1,9 @@
 // منطق مربوط به تراکنش‌های درآمد/هزینه
 
 const Transactions = {
-  add({ type, title, amount, date, category, source = 'manual', refId = null }) {
+  add({ id = null, type, title, amount, date, category, source = 'manual', refId = null }) {
     const tx = {
-      id: generateId(),
+      id: id || generateId(),
       type,
       title,
       amount: Number(amount),
@@ -12,6 +12,8 @@ const Transactions = {
       source,
       refId,
     };
+    const existing = store.data.transactions.find((t) => t.id === tx.id);
+    if (existing) return existing;
     store.data.transactions.push(tx);
     store.persist();
     return tx;
