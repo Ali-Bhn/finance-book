@@ -1,15 +1,17 @@
 // موتور همگام‌سازی اختیاری.
 // بدون ورود، هیچ کاری انجام نمی‌دهد و برنامه مثل قبل فقط روی همین دستگاه کار می‌کند.
-// با ورود: داده‌ها روی دستگاه رمز می‌شوند (js/vault.js)، با نسخه‌ی ابری ادغام می‌شوند (js/merge.js)
-// و نتیجه‌ی رمزشده ذخیره می‌شود (js/cloud.js).
+// با ورود: داده‌ها با نسخه‌ی ابری ادغام می‌شوند (js/merge.js) و در سند مخصوص همین حساب
+// ذخیره می‌شوند (js/cloud.js). قوانین سرور (firestore.rules) تضمین می‌کنند هر کاربر فقط به سند خودش دسترسی دارد.
+// همگام‌سازی هم خودکار است (بعد از هر تغییر، هنگام اتصال دوباره به اینترنت و هنگام بازگشت به برنامه)
+// و هم دستی (دکمه‌ی «همگام‌سازی الان»).
 
 const SYNC_META_KEY = 'finance_app_sync_v1';
+const SYNC_FIELDS = ['transactions', 'installments', 'recurring', 'deleted', 'settings'];
 
 const Sync = {
-  status: 'unavailable', // unavailable | signed-out | loading | needs-verify | foreign | needs-setup | locked | syncing | ok | error
+  status: 'unavailable', // unavailable | signed-out | loading | needs-verify | foreign | syncing | ok | error
   error: null,
   user: null,
-  key: null,
   adapter: null,
   listeners: [],
   applying: false,
@@ -77,7 +79,6 @@ const Sync = {
 
   async handleUser(user) {
     this.user = user;
-    this.key = null;
     if (!user) {
       this.saveMeta({ signedIn: false });
       this.setStatus('signed-out');
@@ -90,17 +91,7 @@ const Sync = {
       this.setStatus('foreign');
       return;
     }
-    await this.continueSignedIn();
-  },
-
-  async continueSignedIn() {
-    this.setStatus('loading');
-    const remote = await this.adapter.getDoc();
-    if (!remote) { this.setStatus('needs-setup'); return; }
-    const key = await Vault.DeviceKeys.get(this.user.uid);
-    if (!key) { this.setStatus('locked'); return; }
-    this.key = key;
-    this.saveMeta({ ownerUid: this.user.uid });
+    this.saveMeta({ ownerUid: user.uid });
     await this.syncNow();
   },
 
@@ -124,63 +115,26 @@ const Sync = {
   async acceptForeign() {
     store.replace(defaultData());
     store.resetSnapshot();
-    this.saveMeta({ ownerUid: null });
-    this.notifyDataChanged();
-    await this.continueSignedIn();
-  },
-
-  // ---------- گاوصندوق ----------
-  async setup(password) {
-    const uid = this.user.uid;
-    const { header, deviceKey, recoveryKey } = await Vault.create(uid, password);
-    const data = await Vault.encrypt(uid, deviceKey, this.currentPayload());
-    await this.adapter.saveDoc(Object.assign({}, header, { data }), null);
-    await Vault.DeviceKeys.set(uid, deviceKey);
-    this.key = deviceKey;
-    this.saveMeta({ ownerUid: uid, lastSyncAt: Date.now() });
-    this.setStatus('ok');
-    return recoveryKey;
-  },
-
-  async unlock(password) {
-    const uid = this.user.uid;
-    const remote = await this.adapter.getDoc();
-    const key = await Vault.unlockWithPassword(uid, remote, password);
-    await this.useKey(key);
-  },
-
-  async recover(recoveryKey, newPassword) {
-    const uid = this.user.uid;
-    const remote = await this.adapter.getDoc();
-    const dek = await Vault.unlockWithRecoveryKey(uid, remote, recoveryKey, true);
-    const fields = await Vault.rewrapWithPassword(uid, dek, newPassword);
-    await this.adapter.saveDoc(fields, remote.rev);
-    await this.useKey(await Vault.toDeviceKey(dek));
-  },
-
-  async changePassword(currentPassword, newPassword) {
-    const uid = this.user.uid;
-    const remote = await this.adapter.getDoc();
-    const dek = await Vault.unlockWithPassword(uid, remote, currentPassword, true);
-    const fields = await Vault.rewrapWithPassword(uid, dek, newPassword);
-    await this.adapter.saveDoc(fields, remote.rev);
-  },
-
-  async useKey(key) {
-    await Vault.DeviceKeys.set(this.user.uid, key);
-    this.key = key;
     this.saveMeta({ ownerUid: this.user.uid });
+    this.notifyDataChanged();
     await this.syncNow();
-  },
-
-  async forgetKey() {
-    if (this.user) await Vault.DeviceKeys.remove(this.user.uid);
-    this.key = null;
   },
 
   // ---------- داده ----------
   currentPayload() {
     return JSON.parse(JSON.stringify(Object.assign({}, store.data, { settings: Settings.get() })));
+  },
+
+  // فقط فیلدهای داده (بدون rev/updatedAt سند ابری) برای مقایسه
+  payloadFields(o) {
+    o = o || {};
+    return {
+      transactions: o.transactions || [],
+      installments: o.installments || [],
+      recurring: o.recurring || [],
+      deleted: o.deleted || {},
+      settings: o.settings || null,
+    };
   },
 
   applyPayload(payload) {
@@ -205,14 +159,20 @@ const Sync = {
     document.dispatchEvent(new CustomEvent('finance:data-changed', { detail: { settingsChanged } }));
   },
 
+  // همگام‌سازی خودکار: کمی بعد از هر تغییر محلی
   onLocalChange() {
-    if (this.applying || !this.key) return;
+    if (this.applying || this.deleting || !this.isSyncing()) return;
     clearTimeout(this.timer);
     this.timer = setTimeout(() => this.syncNow(), 1500);
   },
 
+  // آیا کاربر وارد شده و همگام‌سازی فعال است؟
+  isSyncing() {
+    return !!this.user && ['syncing', 'ok', 'error'].includes(this.status);
+  },
+
   kick() {
-    if (this.key && (this.status === 'ok' || this.status === 'error')) this.syncNow();
+    if (this.user && (this.status === 'ok' || this.status === 'error')) this.syncNow();
   },
 
   syncNow() {
@@ -233,35 +193,18 @@ const Sync = {
   },
 
   async syncOnce() {
-    if (!this.user || !this.key) return;
-    const uid = this.user.uid;
+    if (!this.user || this.deleting) return;
     this.setStatus('syncing');
     for (let attempt = 0; attempt < 4; attempt += 1) {
       const remote = await this.adapter.getDoc();
-      if (!remote) {
-        // داده‌های ابری از دستگاه دیگری حذف شده است
-        await this.forgetKey();
-        this.setStatus('needs-setup');
-        return;
-      }
-      let remotePayload;
-      try {
-        remotePayload = await Vault.decrypt(uid, this.key, remote.data);
-      } catch (e) {
-        // کلید این دستگاه دیگر معتبر نیست؛ باید دوباره رمز وارد شود
-        await this.forgetKey();
-        this.setStatus('locked');
-        return;
-      }
       const local = this.currentPayload();
-      const merged = mergePayloads(local, remotePayload);
+      const merged = mergePayloads(local, remote || {});
       if (JSON.stringify(merged) !== JSON.stringify(local)) this.applyPayload(merged);
-      const finalPayload = this.currentPayload();
-      if (JSON.stringify(finalPayload) !== JSON.stringify(remotePayload)) {
-        const data = await Vault.encrypt(uid, this.key, finalPayload);
-        if (data.ct.length > 900000) { this.setStatus('error', 'too-large'); return; }
+      const finalPayload = this.payloadFields(this.currentPayload());
+      if (!remote || JSON.stringify(finalPayload) !== JSON.stringify(this.payloadFields(remote))) {
+        if (JSON.stringify(finalPayload).length > 900000) { this.setStatus('error', 'too-large'); return; }
         try {
-          await this.adapter.saveDoc({ data }, remote.rev);
+          await this.adapter.saveDoc(finalPayload, remote ? remote.rev : null);
         } catch (e) {
           // اگر دستگاه دیگری هم‌زمان نوشته باشد، قوانین سرور (rev باید دقیقاً یکی بیشتر باشد) نوشتن را رد می‌کنند
           // و Firebase آن را permission-denied/aborted گزارش می‌کند؛ دوباره می‌خوانیم، ادغام می‌کنیم و تکرار می‌کنیم.
@@ -283,11 +226,8 @@ const Sync = {
 
   // ---------- خروج و حذف ----------
   async signOut(keepLocalData) {
-    const uid = this.user && this.user.uid;
     clearTimeout(this.timer);
     if (this.running) await this.running;
-    if (uid) await Vault.DeviceKeys.remove(uid);
-    this.key = null;
     if (!keepLocalData) {
       store.replace(defaultData());
       store.resetSnapshot();
@@ -297,16 +237,19 @@ const Sync = {
     await this.adapter.signOut();
   },
 
-  async deleteCloud() {
-    const uid = this.user.uid;
+  // password فقط برای حساب‌های ایمیلی لازم است؛ حساب گوگل با پنجره‌ی گوگل تأیید می‌شود
+  async deleteCloud(password) {
     clearTimeout(this.timer);
     if (this.running) await this.running;
-    await this.adapter.deleteDoc();
-    await Vault.DeviceKeys.remove(uid);
-    this.key = null;
-    // داده‌های این دستگاه متعلق به خود کاربر است و می‌ماند
-    this.saveMeta({ ownerUid: null });
-    this.setStatus('needs-setup');
-    await this.adapter.deleteAccount();
+    await this.adapter.reauthenticate(password);
+    this.deleting = true;
+    try {
+      await this.adapter.deleteDoc();
+      // داده‌های این دستگاه متعلق به خود کاربر است و می‌ماند
+      this.saveMeta({ ownerUid: null });
+      await this.adapter.deleteAccount();
+    } finally {
+      this.deleting = false;
+    }
   },
 };

@@ -6,8 +6,8 @@ rules_version = '2';
 // - Every signed-in user has exactly one document: users/{their uid}.
 // - A user can only read/write/delete their OWN document; everything else is denied.
 // - Email/password accounts must have a verified email (Google accounts always do).
-// - The document only ever contains the locked (wrapped) key and encrypted data,
-//   so even with console access the contents cannot be read (see js/vault.js).
+// - Writes must have the expected shape, a server timestamp and a revision exactly
+//   one higher than the stored one (so one device can't silently overwrite another).
 service cloud.firestore {
   match /databases/{database}/documents {
 
@@ -20,14 +20,16 @@ service cloud.firestore {
 
       function validShape() {
         let d = request.resource.data;
-        return d.keys().hasOnly(['v', 'kdf', 'pw', 'rec', 'data', 'rev', 'updatedAt'])
-          && d.keys().hasAll(['v', 'kdf', 'pw', 'rec', 'data', 'rev', 'updatedAt'])
-          && d.v == 1
+        let fields = ['transactions', 'installments', 'recurring', 'deleted', 'settings', 'rev', 'updatedAt'];
+        return d.keys().hasOnly(fields)
+          && d.keys().hasAll(fields)
+          && d.transactions is list
+          && d.installments is list
+          && d.recurring is list
+          && d.deleted is map
+          && (d.settings == null || d.settings is map)
           && d.rev is int
-          && d.updatedAt == request.time
-          && d.kdf is map && d.kdf.iter is int && d.kdf.iter >= 600000
-          && d.pw is map && d.rec is map
-          && d.data is map && d.data.ct is string && d.data.iv is string;
+          && d.updatedAt == request.time;
       }
 
       allow get: if isOwner();

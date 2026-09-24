@@ -1,6 +1,6 @@
 // اتصال به Firebase (ورود + ذخیره‌ی سند رمزشده). فقط وقتی بارگذاری می‌شود که کاربر بخواهد وارد شود
 // یا قبلاً وارد شده باشد؛ بدون ورود، برنامه هیچ ارتباطی با سرور ندارد.
-// سرور فقط سرآیند قفل‌شده و داده‌ی رمزشده را می‌بیند (نگاه کنید به js/vault.js و firestore.rules).
+// هر کاربر فقط به سند خودش (users/{uid}) دسترسی دارد (نگاه کنید به firestore.rules).
 
 const SDK = 'https://www.gstatic.com/firebasejs/10.14.1';
 
@@ -13,7 +13,7 @@ export async function createFirebaseAdapter(config) {
   const {
     getAuth, onAuthStateChanged, GoogleAuthProvider, signInWithPopup, signInWithRedirect, getRedirectResult,
     createUserWithEmailAndPassword, signInWithEmailAndPassword, sendEmailVerification, sendPasswordResetEmail,
-    signOut, deleteUser, reload,
+    signOut, deleteUser, reload, reauthenticateWithPopup, reauthenticateWithCredential, EmailAuthProvider,
   } = authMod;
   const { getFirestore, doc, getDoc, runTransaction, deleteDoc, serverTimestamp } = fsMod;
 
@@ -66,6 +66,15 @@ export async function createFirebaseAdapter(config) {
     },
     resetPassword: (email) => sendPasswordResetEmail(auth, email),
     signOut: () => signOut(auth),
+    // قبل از حذف حساب، هویت دوباره تأیید می‌شود (Firebase حذف را فقط بعد از ورود تازه اجازه می‌دهد)
+    async reauthenticate(password) {
+      const u = auth.currentUser;
+      if (password) {
+        await reauthenticateWithCredential(u, EmailAuthProvider.credential(u.email, password));
+      } else {
+        await reauthenticateWithPopup(u, new GoogleAuthProvider());
+      }
+    },
     deleteAccount: () => deleteUser(auth.currentUser),
 
     async getDoc() {
@@ -84,8 +93,8 @@ export async function createFirebaseAdapter(config) {
           throw err;
         }
         const rev = (currentRev || 0) + 1;
-        const next = Object.assign({}, snap.exists() ? snap.data() : {}, fields, { rev, updatedAt: serverTimestamp() });
-        tx.set(ref, next);
+        // همیشه کل داده نوشته می‌شود؛ فیلدهای قدیمی (مثلاً سند رمزشده‌ی نسخه‌ی قبل) جایگزین می‌شوند
+        tx.set(ref, Object.assign({}, fields, { rev, updatedAt: serverTimestamp() }));
         return rev;
       });
     },
