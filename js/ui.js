@@ -234,6 +234,34 @@ function setInstallmentMode(mode) {
   document.getElementById('txInstAmountField').classList.toggle('hidden', mode !== 'amount');
 }
 
+// ---------- Installment preview: به کاربر نشان می‌دهد دقیقاً چه چیزی و کِی کم می‌شود ----------
+function updateInstallmentPreview() {
+  const el = document.getElementById('txInstPreview');
+  const total = Number(document.getElementById('txAmount').value);
+  const mode = document.getElementById('txInstMode').value;
+  const months = Number(document.getElementById('txInstTotalMonths').value);
+  const monthlyInput = Number(document.getElementById('txInstMonthlyAmount').value);
+  const day = Number(document.getElementById('txInstDay').value);
+  const paid = document.getElementById('txInstPaidThisMonth').checked;
+
+  const monthly = mode === 'amount' ? monthlyInput : (months >= 1 ? total / months : 0);
+  if (!(total > 0) || !(monthly > 0)) { el.textContent = ''; return; }
+
+  let first;
+  if (paid) first = t('instPreview.nextMonth');
+  else if (day >= 1 && day <= 31) {
+    first = todayDayOfMonth() >= clampDayToMonth(day, currentMonthKey())
+      ? t('instPreview.today')
+      : t('instPreview.thisMonthDay').replace('{day}', day);
+  } else first = t('instPreview.today');
+
+  const count = Math.ceil(total / monthly);
+  el.textContent = t('instPreview.text')
+    .replace('{amount}', formatCurrency(Math.round(monthly * 100) / 100))
+    .replace('{count}', count.toLocaleString(LOCALE_MAP[Settings.get().language] || 'en-US'))
+    .replace('{first}', first);
+}
+
 // ---------- Add form (یک فرم برای همه چیز: یک‌باره، ماهانه، قسطی) ----------
 const txFormState = { type: 'expense', kind: 'normal', categoryTouched: false };
 
@@ -285,6 +313,7 @@ function openAddModal({ type = 'expense', kind = 'normal' } = {}) {
   buildDateField(todayIso());
   document.getElementById('txRecDay').value = todayDayOfMonth();
   setInstallmentMode('months');
+  document.getElementById('txInstPreview').textContent = '';
   txFormState.type = kind === 'installment' ? 'expense' : type;
   txFormState.kind = kind;
   txFormState.categoryTouched = false;
@@ -330,7 +359,12 @@ function initTxForm() {
     });
   });
   document.querySelectorAll('#txInstModeToggle .kind-toggle-btn').forEach((btn) => {
-    btn.addEventListener('click', () => setInstallmentMode(btn.dataset.mode));
+    btn.addEventListener('click', () => { setInstallmentMode(btn.dataset.mode); updateInstallmentPreview(); });
+  });
+  ['txAmount', 'txInstTotalMonths', 'txInstMonthlyAmount', 'txInstDay', 'txInstPaidThisMonth'].forEach((id) => {
+    const el = document.getElementById(id);
+    el.addEventListener('input', updateInstallmentPreview);
+    el.addEventListener('change', updateInstallmentPreview);
   });
 
   form.addEventListener('submit', (e) => {
@@ -352,14 +386,23 @@ function initTxForm() {
       const monthly = Number(document.getElementById('txInstMonthlyAmount').value);
       if (mode === 'months' && !(months >= 1)) { showFormError('error.months'); return; }
       if (mode === 'amount' && !(monthly > 0)) { showFormError('error.monthlyAmount'); return; }
-      Installments.add({
+      const dayRaw = document.getElementById('txInstDay').value.trim();
+      const day = dayRaw === '' ? null : Number(dayRaw);
+      if (day !== null && !(day >= 1 && day <= 31)) { showFormError('error.day'); return; }
+      const paidThisMonth = document.getElementById('txInstPaidThisMonth').checked;
+      const inst = Installments.add({
         title: title || t('installments.defaultTitle'),
         totalAmount: amount,
         mode,
         totalMonths: mode === 'months' ? months : null,
         monthlyAmount: mode === 'amount' ? monthly : null,
+        dayOfMonth: day,
+        paidThisMonth,
       });
-      showToast(t('installments.addedToast'));
+      const st = Installments.monthStatus(inst);
+      if (st === 'charged') showToast(t('installments.addedToast'));
+      else if (st === 'skipped') showToast(t('installments.addedToastNextMonth'));
+      else showToast(t('installments.addedToastLater').replace('{day}', inst.dayOfMonth));
       selectedMonthKey = currentMonthKey();
     } else if (kind === 'recurring') {
       const day = Number(document.getElementById('txRecDay').value);
@@ -434,9 +477,17 @@ function installmentCardHtml(inst) {
   const paidAmount = Math.max(0, inst.totalAmount - inst.remainingAmount);
   const progressPct = inst.totalAmount > 0 ? Math.round((paidAmount / inst.totalAmount) * 100) : 100;
   const remainingMonths = Installments.estimatedRemainingMonths(inst);
-  const sub = inst.status === 'active'
-    ? `${formatCurrency(inst.monthlyAmount)} ${t('installments.perMonth')} · ${remainingMonths} ${t('installments.monthsLeft')}`
-    : t('badge.paid');
+  let sub = t('badge.paid');
+  if (inst.status === 'active') {
+    const statusKey = {
+      charged: 'installments.paidThisMonth',
+      skipped: 'installments.startsNextMonth',
+      upcoming: 'installments.dueOnDay',
+      none: 'installments.notPaidThisMonth',
+    }[Installments.monthStatus(inst)];
+    sub = `${formatCurrency(inst.monthlyAmount)} ${t('installments.perMonth')} · ${remainingMonths} ${t('installments.monthsLeft')}`
+      + `<br>${t(statusKey).replace('{day}', inst.dayOfMonth)}`;
+  }
   return `
     <div class="item-card installment-card" data-id="${inst.id}" role="button" tabindex="0">
       <span class="tx-icon expense">🧾</span>
@@ -473,6 +524,7 @@ function openInstallmentDetail(id) {
     [t('installments.paidMonthsCountLabel'), inst.paidMonthKeys.length],
     [t('installments.remainingMonthsLabel'), inst.status === 'active' ? remainingMonths : 0],
     [t('installments.startDateLabel'), formatDateDisplay(inst.startDate)],
+    [t('installments.dueDayLabel'), inst.dayOfMonth || t('installments.dueDayNotSet')],
     [t('common.status'), inst.status === 'active' ? t('badge.active') : t('badge.paid')],
   ];
 

@@ -86,6 +86,25 @@ function todayDayOfMonth() {
   return gd;
 }
 
+// روزِ ماه یک تاریخ ISO در تقویم انتخاب‌شده
+function dayOfMonthOf(dateIso) {
+  const [gy, gm, gd] = dateIso.split('-').map(Number);
+  if (Settings.get().calendar === 'jalali') return toJalaali(gy, gm, gd).jd;
+  return gd;
+}
+
+// کلید ماه‌ها از ماهِ یک تاریخ تا ماه جاری (حداکثر ۶۰ ماه)، برای جبران ماه‌هایی که برنامه باز نشده
+function monthKeysSince(dateIso) {
+  const keys = [];
+  const current = currentMonthKey();
+  let key = monthKeyOf(dateIso);
+  while (key <= current && keys.length < 60) {
+    keys.push(key);
+    key = shiftMonthKey(key, 1);
+  }
+  return keys.length ? keys : [current];
+}
+
 // از «کلید ماه + روز» (در تقویم انتخاب‌شده) تاریخ میلادی ISO می‌سازد؛ تاریخ‌ها همیشه میلادی ذخیره می‌شوند
 function isoFromMonthKeyDay(monthKey, day) {
   const [year, month] = monthKey.split('-').map(Number);

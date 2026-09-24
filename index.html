@@ -276,6 +276,18 @@
         <label id="txInstAmountField" class="hidden"><span data-i18n="modal.fieldMonthlyAmount">مبلغ هر قسط</span>
           <input type="number" id="txInstMonthlyAmount" inputmode="decimal" min="0" step="any" data-i18n-placeholder="placeholder.zero" placeholder="0">
         </label>
+
+        <div class="optional-box">
+          <div class="optional-title" data-i18n="modal.instOptionalTitle">اختیاری</div>
+          <label><span data-i18n="modal.instFieldDay">هر ماه چه روزی کم می‌شود؟</span>
+            <input type="number" id="txInstDay" inputmode="numeric" min="1" max="31" data-i18n-placeholder="placeholder.instDay" placeholder="مثلاً 10">
+          </label>
+          <label class="check-row">
+            <input type="checkbox" id="txInstPaidThisMonth">
+            <span data-i18n="modal.instPaidThisMonth">قسط این ماه را قبلاً پرداخت کرده‌ام</span>
+          </label>
+        </div>
+        <p class="inst-preview" id="txInstPreview"></p>
       </div>
 
       <p class="form-error hidden" id="txFormError"></p>

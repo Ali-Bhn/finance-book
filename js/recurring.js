@@ -10,11 +10,13 @@ const Recurring = {
       dayOfMonth: Math.min(31, Math.max(1, Number(dayOfMonth) || 1)),
       category: category || (type === 'income' ? 'salary' : 'recurring'),
       active: true,
+      // موارد جدید ماه‌هایی را که برنامه باز نشده جبران می‌کنند
+      trackFrom: todayIso(),
       generatedMonthKeys: [],
     };
     store.data.recurring.push(item);
     store.persist();
-    this.generateForCurrentMonth(item);
+    this.syncOne(item);
     return item;
   },
 
@@ -29,7 +31,12 @@ const Recurring = {
     if (!item) return null;
     item.active = !item.active;
     store.persist();
-    if (item.active) this.generateForCurrentMonth(item);
+    // بعد از فعال‌سازی دوباره فقط ماه جاری؛ ماه‌های غیرفعال نباید جبران شوند
+    if (item.active) {
+      item.trackFrom = todayIso();
+      store.persist();
+      this.generateForMonth(item, currentMonthKey());
+    }
     return item;
   },
 
@@ -61,15 +68,21 @@ const Recurring = {
     return item.generatedMonthKeys.includes(currentMonthKey());
   },
 
-  // اگر امروز به روز مشخص‌شده رسیده و این ماه هنوز تراکنش ساخته نشده، تراکنش را می‌سازد
-  generateForCurrentMonth(item) {
+  // اگر روز مشخص‌شده‌ی آن ماه رسیده و هنوز تراکنش ساخته نشده، تراکنش را می‌سازد
+  generateForMonth(item, monthKey) {
     this.normalize(item);
     if (!item.active) return false;
-    const monthKey = currentMonthKey();
     if (item.generatedMonthKeys.includes(monthKey)) return false;
 
     const chargeDay = clampDayToMonth(item.dayOfMonth, monthKey);
-    if (todayDayOfMonth() < chargeDay) return false;
+    if (monthKey === currentMonthKey() && todayDayOfMonth() < chargeDay) return false;
+    // در ماه شروع، روزهای قبل از تاریخ ثبت را ثبت نمی‌کنیم مگر اینکه همان ماه جاری باشد (رفتار قبلی)
+    if (item.trackFrom && monthKey === monthKeyOf(item.trackFrom) && monthKey !== currentMonthKey()
+      && chargeDay < dayOfMonthOf(item.trackFrom)) {
+      item.generatedMonthKeys.push(monthKey);
+      store.persist();
+      return false;
+    }
 
     Transactions.add({
       type: item.type,
@@ -85,7 +98,12 @@ const Recurring = {
     return true;
   },
 
+  syncOne(item) {
+    const keys = item.trackFrom ? monthKeysSince(item.trackFrom) : [currentMonthKey()];
+    keys.forEach((key) => this.generateForMonth(item, key));
+  },
+
   syncAllForCurrentMonth() {
-    this.all().forEach((item) => this.generateForCurrentMonth(item));
+    this.all().forEach((item) => this.syncOne(item));
   },
 };
