@@ -36,9 +36,8 @@ js/reports.js          Monthly report rendering and PDF export
 js/ui.js               Navigation, modals, the Add form, and per-view rendering
 js/app.js              Main application bootstrap + service worker registration
 js/firebase-config.js  Firebase web config for the optional sign-in (null = feature hidden)
-js/vault.js            End-to-end encryption (Web Crypto: AES-256-GCM, PBKDF2, HKDF, recovery key)
 js/merge.js            Pure merge of two devices' data (per-record last-writer-wins + tombstones)
-js/sync.js             Optional sign-in/sync engine (state machine, encrypt → merge → save)
+js/sync.js             Optional sign-in/sync engine (state machine, merge → save, automatic + manual sync)
 js/cloud.js            Firebase adapter (Auth + Firestore), loaded only when needed
 js/account.js          Account & sync UI
 firestore.rules        Firestore security rules (each user can only access their own document)
@@ -61,26 +60,24 @@ CNAME                 Custom subdomain for GitHub Pages (see "Deploying" below)
 - **User settings** (⚙ icon in the top bar): language (Persian/English/German), currency (Toman, Rial, USD, EUR, GBP), and calendar system (Jalali or Gregorian) — every part of the app (text, amount formatting, dates, month names) updates accordingly
 - Custom in-app confirmation modal for all delete actions (transactions, installments, recurring expenses) instead of the browser's native `confirm()` dialog — consistent styling and mobile-friendly
 
-## Optional sign-in & sync (end-to-end encrypted)
+## Optional sign-in & sync
 
 Signing in is **optional**. Without it, the app works exactly as before: all data stays in this browser only, and the app never contacts any server. With it, data is available on every device the user signs in on.
 
 **How it works**
-- Sign-in with Google or email + password (Firebase Authentication; email accounts must confirm their email).
-- On first sign-in the user creates a **data password**. A random 256-bit data key encrypts everything (AES-256-GCM); that key is locked with the data password (PBKDF2-SHA256, 600,000 iterations) and separately with a **recovery key** (160-bit, shown once as `XXXX-XXXX-…`, HKDF-SHA256).
-- Only the locked key and the ciphertext are stored in Firestore (`users/{uid}`) — never the password, the recovery key or any readable data. Not even the Firebase project owner can read it.
-- The user's ID is bound into the encryption (AES-GCM additional data), so ciphertext can't be moved between accounts.
-- Each device keeps the data key as a **non-extractable** CryptoKey in IndexedDB, so the password is entered once per device.
-- Changes are merged per record (newest wins, deletions are tracked), installment/monthly auto-charges use deterministic IDs so two devices never double-charge, and writes use a revision check to avoid overwriting another device.
+- Sign-in with **Google** (standard "Continue with Google" button) or email + password (Firebase Authentication; email accounts must confirm their email).
+- Each user's data is stored in one Firestore document, `users/{uid}`. The security rules in [`firestore.rules`](firestore.rules) only let a signed-in user read or write **their own** document; everything else is denied. Data is not end-to-end encrypted (the Firebase project owner can see it in the console); it is protected by the access rules and Google's encryption at rest.
+- **Sync is automatic** (a few seconds after every change, when the app is opened and when the connection comes back) **and manual** ("Sync now" in the account window).
+- Changes are merged per record (newest wins, deletions are tracked), installment/monthly auto-charges use deterministic IDs so two devices never double-charge, and writes carry a revision number that the rules require to increase by exactly one, so one device can't silently overwrite another (a rejected write is re-read, merged and retried).
 - Signing out asks whether to keep or remove the data on this device. If a *different* account signs in on a device that holds another account's data, that data is never uploaded to the new account.
-- Forgot the data password → recover with the recovery key and choose a new one. Lost both → the cloud copy can't be decrypted, but data on already-synced devices is intact.
+- Deleting the account asks the user to confirm their identity again (Google window or password), then removes the cloud data and the account; data on the device stays.
 - A Content-Security-Policy restricts scripts to this site, the library CDNs and Google/Firebase sign-in.
 
 **Setting up Firebase (one time, by the site owner)**
 1. [console.firebase.google.com](https://console.firebase.google.com) → *Add project*.
 2. *Build → Authentication → Sign-in method*: enable **Google** and **Email/Password**. Under *Settings → Authorized domains*, add your domain (e.g. `finance.bahadoran.de`).
 3. *Build → Firestore Database → Create database* (e.g. `europe-west3`, production mode). Open the *Rules* tab, paste the contents of [`firestore.rules`](firestore.rules) and *Publish*.
-4. *Project settings → Your apps → Web (`</>`)*: register an app and copy the `firebaseConfig` object into `js/firebase-config.js` (`window.FIREBASE_CONFIG = { ... }`). These values are not secret; security comes from the rules and the encryption.
+4. *Project settings → Your apps → Web (`</>`)*: register an app and copy the `firebaseConfig` object into `js/firebase-config.js` (`window.FIREBASE_CONFIG = { ... }`). These values are not secret; security comes from the rules.
 5. Bump `CACHE_NAME` in `sw.js` and deploy.
 
 ## Technical notes

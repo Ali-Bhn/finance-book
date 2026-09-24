@@ -1,8 +1,8 @@
 // رابط کاربری حساب و همگام‌سازی (اختیاری)
 
 const AccountUI = {
-  pane: null, // صفحه‌ای که کاربر خودش باز کرده (مثل تغییر رمز)؛ در غیر این صورت از وضعیت Sync تعیین می‌شود
-  recoveryKey: null,
+  pane: null, // صفحه‌ای که کاربر خودش باز کرده (خروج / حذف)؛ در غیر این صورت از وضعیت Sync تعیین می‌شود
+  authMode: 'signin', // signin | signup
 
   init() {
     const btn = document.getElementById('syncBtn');
@@ -15,6 +15,7 @@ const AccountUI = {
 
     Sync.on(() => this.render());
     this.bind();
+    this.setAuthMode('signin');
     this.render();
   },
 
@@ -33,9 +34,7 @@ const AccountUI = {
       case 'loading': return 'loading';
       case 'needs-verify': return 'needs-verify';
       case 'foreign': return 'foreign';
-      case 'needs-setup': return 'needs-setup';
-      case 'locked': return 'locked';
-      case 'error': return Sync.user && Sync.key ? 'account' : (Sync.user ? 'loading' : 'signin');
+      case 'error': return Sync.user ? 'account' : 'signin';
       default: return 'account';
     }
   },
@@ -44,6 +43,27 @@ const AccountUI = {
     this.pane = pane;
     this.clearMessages();
     this.render();
+  },
+
+  setAuthMode(mode) {
+    this.authMode = mode;
+    const signup = mode === 'signup';
+    document.querySelectorAll('.auth-tab').forEach((t) => {
+      const active = t.dataset.authMode === mode;
+      t.classList.toggle('active', active);
+      t.setAttribute('aria-selected', active ? 'true' : 'false');
+    });
+    const submit = document.getElementById('accSubmitBtn');
+    submit.dataset.i18n = signup ? 'acc.signUp' : 'acc.signIn';
+    submit.textContent = t(submit.dataset.i18n);
+    document.getElementById('accPassword').autocomplete = signup ? 'new-password' : 'current-password';
+    document.getElementById('accForgotRow').classList.toggle('hidden', signup);
+    document.getElementById('accPwHint').classList.toggle('hidden', !signup);
+    this.clearMessages();
+  },
+
+  providerLabel(user) {
+    return user && user.provider === 'google.com' ? t('acc.viaGoogle') : t('acc.viaEmail');
   },
 
   statusText() {
@@ -55,7 +75,7 @@ const AccountUI = {
       return `✓ ${t('acc.stOk')}${time ? ` · ${time}` : ''}`;
     }
     if (s === 'error') return `⚠ ${this.errorText(Sync.error)}`;
-    if (['needs-verify', 'foreign', 'needs-setup', 'locked'].includes(s)) return `⚠ ${t('acc.stAction')}`;
+    if (s === 'needs-verify' || s === 'foreign') return `⚠ ${t('acc.stAction')}`;
     if (s === 'loading') return t('acc.loading');
     return t('acc.stSignedOut');
   },
@@ -67,7 +87,7 @@ const AccountUI = {
     let dotClass = '';
     if (s === 'ok') dotClass = 'ok';
     else if (s === 'syncing' || s === 'loading') dotClass = 'busy';
-    else if (['needs-verify', 'foreign', 'needs-setup', 'locked', 'error'].includes(s)) dotClass = 'warn';
+    else if (['needs-verify', 'foreign', 'error'].includes(s)) dotClass = 'warn';
     dot.className = `sync-dot ${dotClass}`;
     document.getElementById('settingsSyncStatus').textContent = this.statusText();
 
@@ -76,18 +96,22 @@ const AccountUI = {
       el.classList.toggle('hidden', el.dataset.pane !== pane);
     });
 
-    if (Sync.user) {
-      document.getElementById('accUserEmail').textContent = Sync.user.email || '';
-      document.getElementById('accAvatar').textContent = (Sync.user.email || '?').charAt(0).toUpperCase();
-      document.getElementById('accVerifyText').textContent = t('acc.verifyText').replace('{email}', Sync.user.email || '');
+    const user = Sync.user;
+    if (user) {
+      document.getElementById('accUserEmail').textContent = user.email || '';
+      document.getElementById('accAvatar').textContent = (user.email || '?').charAt(0).toUpperCase();
+      document.getElementById('accProvider').textContent = this.providerLabel(user);
+      document.getElementById('accVerifyText').textContent = t('acc.verifyText').replace('{email}', user.email || '');
+      const isGoogle = user.provider === 'google.com';
+      document.getElementById('accDeletePwField').classList.toggle('hidden', isGoogle);
+      document.getElementById('accDeleteGoogleNote').classList.toggle('hidden', !isGoogle);
     }
-    document.getElementById('accStatusLine').textContent = this.statusText();
-    document.getElementById('accSyncNowBtn').disabled = s === 'syncing';
-    if (pane === 'recovery-show') document.getElementById('accRecKey').textContent = this.recoveryKey || '';
-    const overlay = document.getElementById('accountModalOverlay');
-    if (pane === 'recovery-show') overlay.dataset.locked = '1';
-    else delete overlay.dataset.locked;
-    overlay.querySelector('.modal-close').classList.toggle('hidden', pane === 'recovery-show');
+    const state = document.getElementById('accSyncState');
+    state.textContent = this.statusText();
+    state.className = `sync-state ${s}`;
+    const syncBtn = document.getElementById('accSyncNowBtn');
+    syncBtn.disabled = s === 'syncing';
+    syncBtn.classList.toggle('spinning', s === 'syncing');
   },
 
   clearMessages() {
@@ -122,17 +146,12 @@ const AccountUI = {
       'auth/network-request-failed': 'acc.err.network',
       'auth/popup-closed-by-user': 'acc.err.popupClosed',
       'auth/cancelled-popup-request': 'acc.err.popupClosed',
+      'auth/user-mismatch': 'acc.err.userMismatch',
       'auth/requires-recent-login': 'acc.err.recentLogin',
       unavailable: 'acc.err.network',
       'permission-denied': 'acc.err.permission',
-      'weak-password': 'acc.err.weakSync',
-      'password-mismatch': 'acc.err.mismatch',
-      'wrong-password': 'acc.err.wrongSync',
-      'wrong-recovery-key': 'acc.err.wrongRecovery',
-      'bad-recovery-key': 'acc.err.badRecovery',
       'not-verified': 'acc.err.notVerified',
       'too-large': 'acc.err.tooLarge',
-      'unsupported-browser': 'acc.err.browser',
     };
     return t(map[code] || 'acc.err.generic');
   },
@@ -154,41 +173,50 @@ const AccountUI = {
     }
   },
 
-  checkNewPassword(pw, pw2) {
-    if (!pw || pw.length < Vault.MIN_PASSWORD_LENGTH) throw new Vault.VaultError('weak-password');
-    if (pw !== pw2) throw new Vault.VaultError('password-mismatch');
-  },
-
   bind() {
     const $ = (id) => document.getElementById(id);
-    const val = (id) => $(id).value;
-    const clear = (...ids) => ids.forEach((id) => { $(id).value = ''; });
+    const authError = (code) => { const e = new Error(code); e.code = code; return e; };
 
     $('accGoogleBtn').addEventListener('click', (e) => this.run(e.currentTarget, () => Sync.signInGoogle()));
 
+    document.querySelectorAll('.auth-tab').forEach((tab) => {
+      tab.addEventListener('click', () => this.setAuthMode(tab.dataset.authMode));
+    });
+
+    $('accPwToggle').addEventListener('click', () => {
+      const input = $('accPassword');
+      const show = input.type === 'password';
+      input.type = show ? 'text' : 'password';
+      $('accPwToggle').classList.toggle('on', show);
+      $('accPwToggle').title = t(show ? 'acc.hidePassword' : 'acc.showPassword');
+    });
+
     $('accEmailForm').addEventListener('submit', (e) => {
       e.preventDefault();
-      this.run(e.submitter, async () => {
-        await Sync.signInEmail(val('accEmail').trim(), val('accPassword'));
-        clear('accPassword');
+      this.run($('accSubmitBtn'), async () => {
+        const email = $('accEmail').value.trim();
+        const password = $('accPassword').value;
+        if (!email) throw authError('auth/missing-email');
+        if (this.authMode === 'signup') {
+          if (password.length < 8) throw authError('auth/weak-password');
+          await Sync.signUpEmail(email, password);
+        } else {
+          if (!password) throw authError('auth/missing-password');
+          await Sync.signInEmail(email, password);
+        }
+        $('accPassword').value = '';
       });
     });
-    $('accSignUpBtn').addEventListener('click', (e) => this.run(e.currentTarget, async () => {
-      const pw = val('accPassword');
-      if (pw.length < 8) { const err = new Error(); err.code = 'auth/weak-password'; throw err; }
-      await Sync.signUpEmail(val('accEmail').trim(), pw);
-      clear('accPassword');
-    }));
     $('accForgotBtn').addEventListener('click', (e) => this.run(e.currentTarget, async () => {
-      const email = val('accEmail').trim();
-      if (!email) { const err = new Error(); err.code = 'auth/missing-email'; throw err; }
+      const email = $('accEmail').value.trim();
+      if (!email) throw authError('auth/missing-email');
       await Sync.resetPassword(email);
       this.showInfo('acc.resetSent');
     }));
 
     $('accVerifiedBtn').addEventListener('click', (e) => this.run(e.currentTarget, async () => {
       const ok = await Sync.checkVerified();
-      if (!ok) { const err = new Error(); err.code = 'not-verified'; throw err; }
+      if (!ok) throw authError('not-verified');
     }));
     $('accResendBtn').addEventListener('click', (e) => this.run(e.currentTarget, async () => {
       await Sync.resendVerification();
@@ -197,74 +225,11 @@ const AccountUI = {
 
     $('accForeignOkBtn').addEventListener('click', (e) => this.run(e.currentTarget, () => Sync.acceptForeign()));
 
-    $('accSetupForm').addEventListener('submit', (e) => {
-      e.preventDefault();
-      this.run(e.submitter, async () => {
-        this.checkNewPassword(val('accSetupPw'), val('accSetupPw2'));
-        this.recoveryKey = await Sync.setup(val('accSetupPw'));
-        clear('accSetupPw', 'accSetupPw2');
-        $('accRecSaved').checked = false;
-        $('accRecDoneBtn').disabled = true;
-        this.go('recovery-show');
-      });
-    });
-
-    $('accRecCopyBtn').addEventListener('click', async () => {
-      try {
-        await navigator.clipboard.writeText(this.recoveryKey);
-        this.showInfo('acc.copied');
-      } catch (e) {
-        this.showError('unknown');
-      }
-    });
-    $('accRecDownloadBtn').addEventListener('click', () => {
-      const text = `${t('brand.name')} — ${t('acc.recTitle')}\n\n${this.recoveryKey}\n\n${Sync.user ? Sync.user.email : ''}\n\n${t('acc.recFileNote')}\n`;
-      const a = document.createElement('a');
-      a.href = URL.createObjectURL(new Blob([text], { type: 'text/plain;charset=utf-8' }));
-      a.download = 'finance-book-recovery-key.txt';
-      a.click();
-      setTimeout(() => URL.revokeObjectURL(a.href), 1000);
-    });
-    $('accRecSaved').addEventListener('change', () => { $('accRecDoneBtn').disabled = !$('accRecSaved').checked; });
-    $('accRecDoneBtn').addEventListener('click', () => {
-      // کلید بازیابی فقط همین یک بار نمایش داده می‌شود و در هیچ‌جا ذخیره نمی‌شود
-      this.recoveryKey = null;
-      $('accRecKey').textContent = '';
-      this.go(null);
-    });
-
-    $('accUnlockForm').addEventListener('submit', (e) => {
-      e.preventDefault();
-      this.run(e.submitter, async () => {
-        await Sync.unlock(val('accUnlockPw'));
-        clear('accUnlockPw');
-        this.go(null);
-      });
-    });
-
-    $('accRecoverForm').addEventListener('submit', (e) => {
-      e.preventDefault();
-      this.run(e.submitter, async () => {
-        this.checkNewPassword(val('accRecoverPw'), val('accRecoverPw2'));
-        await Sync.recover(val('accRecoverKey'), val('accRecoverPw'));
-        clear('accRecoverKey', 'accRecoverPw', 'accRecoverPw2');
-        this.go(null);
-        this.showInfo('acc.recovered');
-      });
-    });
-
-    $('accSyncNowBtn').addEventListener('click', (e) => this.run(e.currentTarget, () => Sync.syncNow()));
-
-    $('accChangePwForm').addEventListener('submit', (e) => {
-      e.preventDefault();
-      this.run(e.submitter, async () => {
-        this.checkNewPassword(val('accNewPw'), val('accNewPw2'));
-        await Sync.changePassword(val('accCurPw'), val('accNewPw'));
-        clear('accCurPw', 'accNewPw', 'accNewPw2');
-        this.go(null);
-        this.showInfo('acc.pwChanged');
-      });
-    });
+    // همگام‌سازی دستی
+    $('accSyncNowBtn').addEventListener('click', (e) => this.run(e.currentTarget, async () => {
+      await Sync.syncNow();
+      if (Sync.status === 'error') throw authError(Sync.error);
+    }));
 
     $('accSignOutKeepBtn').addEventListener('click', (e) => this.run(e.currentTarget, async () => {
       await Sync.signOut(true);
@@ -281,11 +246,18 @@ const AccountUI = {
       }));
     });
 
-    $('accDeleteBtn').addEventListener('click', (e) => this.run(e.currentTarget, async () => {
-      this.go(null);
-      await Sync.deleteCloud();
-      this.showInfo('acc.deleted');
-    }));
+    $('accDeleteForm').addEventListener('submit', (e) => {
+      e.preventDefault();
+      this.run(e.submitter, async () => {
+        const isGoogle = Sync.user && Sync.user.provider === 'google.com';
+        const password = $('accDeletePw').value;
+        if (!isGoogle && !password) throw authError('auth/missing-password');
+        await Sync.deleteCloud(isGoogle ? null : password);
+        $('accDeletePw').value = '';
+        this.go(null);
+        this.showInfo('acc.deleted');
+      });
+    });
 
     document.querySelectorAll('#accountModalOverlay [data-acc-go]').forEach((b) => {
       b.addEventListener('click', () => this.go(b.dataset.accGo));
