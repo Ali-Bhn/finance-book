@@ -7,6 +7,12 @@ const Installments = {
   // dayOfMonth (اختیاری): روزی از ماه که قسط کم می‌شود؛ اگر خالی باشد، اولین باری که برنامه در آن ماه باز شود کم می‌شود.
   // paidThisMonth (اختیاری): اگر قسط این ماه قبلاً پرداخت شده، این ماه چیزی کم نمی‌شود و از ماه بعد شروع می‌شود.
   add({ title, totalAmount, mode, totalMonths, monthlyAmount, dayOfMonth = null, paidThisMonth = false }) {
+    const monthKey = currentMonthKey();
+    const day = dayOfMonth ? Math.min(31, Math.max(1, Number(dayOfMonth))) : null;
+    // اگر روز کسر این ماه گذشته، یعنی قسط این ماه قبلاً کم شده و «مبلغ باقی‌مانده» بعد از آن است؛
+    // پس این ماه چیزی کم نمی‌کنیم و اولین کسر ماه بعد است.
+    const dayAlreadyPassed = day !== null && todayDayOfMonth() > clampDayToMonth(day, monthKey);
+    const skipThisMonth = paidThisMonth || dayAlreadyPassed;
     const total = Number(totalAmount);
     const monthly = mode === 'amount'
       ? Number(monthlyAmount)
@@ -22,9 +28,9 @@ const Installments = {
       // اقساط جدید ماه‌هایی را که برنامه باز نشده جبران می‌کنند؛ اقساط قدیمی (بدون این فیلد) فقط ماه جاری را
       trackFrom: todayIso(),
       status: 'active',
-      dayOfMonth: dayOfMonth ? Math.min(31, Math.max(1, Number(dayOfMonth))) : null,
+      dayOfMonth: day,
       paidMonthKeys: [],
-      skippedMonthKeys: paidThisMonth ? [currentMonthKey()] : [],
+      skippedMonthKeys: skipThisMonth ? [monthKey] : [],
     };
     store.data.installments.push(installment);
     store.persist();

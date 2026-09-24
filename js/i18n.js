@@ -128,7 +128,7 @@ const I18N = {
     'settings.currencyGbp': '🇬🇧 پوند انگلیس',
     'settings.save': '💾 ذخیره تنظیمات',
 
-    'toast.txAdded': "ثبت شد ✓",
+    'toast.txAdded': "ثبت شد",
     'toast.txDeleted': 'تراکنش حذف شد',
     'toast.settingsSaved': 'تنظیمات ذخیره شد',
 
@@ -212,11 +212,14 @@ const I18N = {
     'instPreview.thisMonthDay': "روز {day} همین ماه",
     'instPreview.nextMonth': "از ماه بعد (این ماه چیزی کم نمی‌شود)",
     'installments.addedToastLater': "قسط ثبت شد؛ روز {day} این ماه کم می‌شود",
-    'installments.addedToastNextMonth': "قسط ثبت شد؛ از ماه بعد کم می‌شود",
-    'installments.startsNextMonth': "این ماه پرداخت‌شده — از ماه بعد کم می‌شود",
+    'installments.addedToastNextMonth': "قسط ثبت شد؛ این ماه چیزی کم نشد و از ماه بعد کم می‌شود",
+    'installments.startsNextMonth': "این ماه حساب نمی‌شود — از ماه بعد کم می‌شود",
     'installments.dueOnDay': "روز {day} این ماه کم می‌شود",
     'installments.dueDayLabel': "روز کسر در هر ماه",
     'installments.dueDayNotSet': "تعیین نشده",
+    'modal.close': "بستن",
+    'modal.nextEntryHint': "می‌توانید مورد بعدی را وارد کنید",
+    'instPreview.dayPassed': "ماه بعد (روز {day} این ماه گذشته، پس قسط این ماه حساب نمی‌شود)",
   },
 
   en: {
@@ -334,7 +337,7 @@ const I18N = {
     'settings.currencyGbp': '🇬🇧 British Pound',
     'settings.save': '💾 Save Settings',
 
-    'toast.txAdded': "Saved ✓",
+    'toast.txAdded': "Saved",
     'toast.txDeleted': 'Transaction deleted',
     'toast.settingsSaved': 'Settings saved',
 
@@ -418,11 +421,14 @@ const I18N = {
     'instPreview.thisMonthDay': "day {day} of this month",
     'instPreview.nextMonth': "next month (nothing is deducted this month)",
     'installments.addedToastLater': "Installment saved — it will be deducted on day {day}",
-    'installments.addedToastNextMonth': "Installment saved — deductions start next month",
-    'installments.startsNextMonth': "Paid this month — starts next month",
+    'installments.addedToastNextMonth': "Installment saved — nothing deducted this month, starts next month",
+    'installments.startsNextMonth': "Not counted this month — starts next month",
     'installments.dueOnDay': "Will be deducted on day {day}",
     'installments.dueDayLabel': "Deduction day",
     'installments.dueDayNotSet': "Not set",
+    'modal.close': "Close",
+    'modal.nextEntryHint': "you can add the next one",
+    'instPreview.dayPassed': "next month (day {day} has already passed, so this month is not counted)",
   },
 
   de: {
@@ -540,7 +546,7 @@ const I18N = {
     'settings.currencyGbp': '🇬🇧 Britisches Pfund',
     'settings.save': '💾 Einstellungen speichern',
 
-    'toast.txAdded': "Gespeichert ✓",
+    'toast.txAdded': "Gespeichert",
     'toast.txDeleted': 'Transaktion gelöscht',
     'toast.settingsSaved': 'Einstellungen gespeichert',
 
@@ -624,11 +630,14 @@ const I18N = {
     'instPreview.thisMonthDay': "am {day}. dieses Monats",
     'instPreview.nextMonth': "nächsten Monat (diesen Monat wird nichts abgebucht)",
     'installments.addedToastLater': "Rate gespeichert – wird am {day}. abgebucht",
-    'installments.addedToastNextMonth': "Rate gespeichert – Abbuchung ab nächsten Monat",
-    'installments.startsNextMonth': "Diesen Monat bezahlt – ab nächsten Monat",
+    'installments.addedToastNextMonth': "Rate gespeichert – diesen Monat nichts abgebucht, ab nächsten Monat",
+    'installments.startsNextMonth': "Diesen Monat nicht gezählt – ab nächsten Monat",
     'installments.dueOnDay': "Wird am {day}. abgebucht",
     'installments.dueDayLabel': "Abbuchungstag",
     'installments.dueDayNotSet': "Nicht festgelegt",
+    'modal.close': "Schließen",
+    'modal.nextEntryHint': "Sie können den nächsten Eintrag hinzufügen",
+    'instPreview.dayPassed': "nächsten Monat (der {day}. ist schon vorbei, dieser Monat wird nicht gezählt)",
   },
 };
 

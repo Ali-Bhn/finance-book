@@ -724,6 +724,17 @@ form label.check-row input { width: 20px; height: 20px; flex-shrink: 0; accent-c
 .date-select-group { display: flex; gap: 6px; }
 .date-select-group select { flex: 1; min-width: 0; }
 
+.form-actions { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 2fr); gap: 10px; margin-top: 8px; }
+.form-success {
+  background: var(--income-bg);
+  color: var(--income);
+  font-size: 0.85rem;
+  font-weight: 600;
+  line-height: 1.7;
+  padding: 10px 12px;
+  border-radius: 10px;
+  margin: 0 0 8px;
+}
 .form-error {
   background: var(--expense-bg);
   color: var(--expense);
