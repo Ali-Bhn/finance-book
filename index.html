@@ -220,6 +220,7 @@
       <button class="modal-close" data-close-modal="txModalOverlay">×</button>
     </div>
     <form id="txForm" novalidate>
+      <p class="form-success hidden" id="txFormSuccess" role="status"></p>
       <div class="type-toggle">
         <button type="button" class="type-toggle-btn" data-type="expense"><span class="tt-icon">−</span><span data-i18n="common.expense">هزینه</span></button>
         <button type="button" class="type-toggle-btn" data-type="income"><span class="tt-icon">+</span><span data-i18n="common.income">درآمد</span></button>
@@ -291,7 +292,10 @@
       </div>
 
       <p class="form-error hidden" id="txFormError"></p>
-      <button type="submit" class="btn btn-primary btn-block btn-lg" data-i18n="modal.submit">ذخیره</button>
+      <div class="form-actions">
+        <button type="button" class="btn btn-secondary btn-lg" data-close-modal="txModalOverlay" data-i18n="modal.close">بستن</button>
+        <button type="submit" class="btn btn-primary btn-lg" data-i18n="modal.submit">ذخیره</button>
+      </div>
     </form>
   </div>
 </div>

@@ -250,9 +250,11 @@ function updateInstallmentPreview() {
   let first;
   if (paid) first = t('instPreview.nextMonth');
   else if (day >= 1 && day <= 31) {
-    first = todayDayOfMonth() >= clampDayToMonth(day, currentMonthKey())
-      ? t('instPreview.today')
-      : t('instPreview.thisMonthDay').replace('{day}', day);
+    const chargeDay = clampDayToMonth(day, currentMonthKey());
+    const today = todayDayOfMonth();
+    if (today > chargeDay) first = t('instPreview.dayPassed').replace('{day}', day);
+    else if (today === chargeDay) first = t('instPreview.today');
+    else first = t('instPreview.thisMonthDay').replace('{day}', day);
   } else first = t('instPreview.today');
 
   const count = Math.ceil(total / monthly);
@@ -318,11 +320,32 @@ function openAddModal({ type = 'expense', kind = 'normal' } = {}) {
   txFormState.kind = kind;
   txFormState.categoryTouched = false;
   applyTxFormState();
+  hideFormSuccess();
   openModal('txModalOverlay');
   setTimeout(() => document.getElementById('txAmount').focus(), 50);
 }
 
+// بعد از ذخیره: نوع، تکرار، دسته و تاریخ حفظ می‌شوند و فقط مبلغ و عنوان و فیلدهای قسط پاک می‌شوند
+function prepareForNextEntry(message) {
+  ['txAmount', 'txTitle', 'txInstTotalMonths', 'txInstMonthlyAmount', 'txInstDay'].forEach((id) => {
+    document.getElementById(id).value = '';
+  });
+  document.getElementById('txInstPaidThisMonth').checked = false;
+  document.getElementById('txInstPreview').textContent = '';
+  hideFormError();
+  const ok = document.getElementById('txFormSuccess');
+  ok.textContent = `✓ ${message} — ${t('modal.nextEntryHint')}`;
+  ok.classList.remove('hidden');
+  document.querySelector('#txModalOverlay .modal').scrollTop = 0;
+  document.getElementById('txAmount').focus({ preventScroll: true });
+}
+
+function hideFormSuccess() {
+  document.getElementById('txFormSuccess').classList.add('hidden');
+}
+
 function showFormError(key) {
+  hideFormSuccess();
   const el = document.getElementById('txFormError');
   el.textContent = t(key);
   el.classList.remove('hidden');
@@ -364,12 +387,14 @@ function initTxForm() {
   ['txAmount', 'txInstTotalMonths', 'txInstMonthlyAmount', 'txInstDay', 'txInstPaidThisMonth'].forEach((id) => {
     const el = document.getElementById(id);
     el.addEventListener('input', updateInstallmentPreview);
+    el.addEventListener('input', hideFormSuccess);
     el.addEventListener('change', updateInstallmentPreview);
   });
 
   form.addEventListener('submit', (e) => {
     e.preventDefault();
     const { type, kind } = txFormState;
+    let message = '';
     const amount = Number(document.getElementById('txAmount').value);
     const category = document.getElementById('txCategory').value;
     let title = document.getElementById('txTitle').value.trim();
@@ -400,9 +425,9 @@ function initTxForm() {
         paidThisMonth,
       });
       const st = Installments.monthStatus(inst);
-      if (st === 'charged') showToast(t('installments.addedToast'));
-      else if (st === 'skipped') showToast(t('installments.addedToastNextMonth'));
-      else showToast(t('installments.addedToastLater').replace('{day}', inst.dayOfMonth));
+      if (st === 'charged') message = t('installments.addedToast');
+      else if (st === 'skipped') message = t('installments.addedToastNextMonth');
+      else message = t('installments.addedToastLater').replace('{day}', inst.dayOfMonth);
       selectedMonthKey = currentMonthKey();
     } else if (kind === 'recurring') {
       const day = Number(document.getElementById('txRecDay').value);
@@ -414,19 +439,20 @@ function initTxForm() {
         dayOfMonth: day,
         category,
       });
-      showToast(Recurring.isGeneratedThisMonth(item)
+      message = (Recurring.isGeneratedThisMonth(item)
         ? t('recurring.addedToastNow')
         : t('recurring.addedToastLater').replace('{day}', item.dayOfMonth));
       selectedMonthKey = currentMonthKey();
     } else {
       const date = getDateFieldValue();
       Transactions.add({ type, title: title || categoryLabel(category), amount, date, category });
-      showToast(t('toast.txAdded'));
+      message = t('toast.txAdded');
       selectedMonthKey = monthKeyOf(date);
     }
 
-    closeModal('txModalOverlay');
+    // فرم باز می‌ماند تا کاربر بتواند مورد بعدی را وارد کند؛ بستن با دکمه‌ی جداگانه است
     renderActiveView();
+    prepareForNextEntry(message);
   });
 }
 
