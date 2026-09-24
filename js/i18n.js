@@ -222,8 +222,8 @@ const I18N = {
   en: {
     'brand.name': 'Finance Book',
     'nav.dashboard': "Home",
-    'nav.transactions': "Transactions",
-    'nav.installments': "Installments",
+    'nav.transactions': 'Activity',
+    'nav.installments': 'Loans',
     'nav.recurring': "Monthly",
     'nav.reports': "Report",
     'topbar.settingsTitle': 'Settings',

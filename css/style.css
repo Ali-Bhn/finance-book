@@ -209,7 +209,13 @@ h2, h3 { margin: 0; }
 .hero-dot.income { color: var(--income); }
 .hero-dot.expense { color: var(--expense); }
 .hero-split-label { font-size: 0.78rem; opacity: 0.85; }
-.hero-split-value { font-weight: 800; font-size: 0.98rem; overflow-wrap: anywhere; line-height: 1.35; }
+.hero-split-value { font-weight: 800; font-size: 0.98rem; line-height: 1.35; }
+
+/* مبالغ فقط بین عدد و واحد پول می‌شکنند، هرگز وسط عدد */
+.hero-value, .hero-split-value, .mini-value, .net-strip b, .tx-amount, .item-amount, .detail-value {
+  word-break: keep-all;
+  overflow-wrap: normal;
+}
 
 /* ===== Quick add ===== */
 .quick-add {
@@ -269,7 +275,7 @@ h2, h3 { margin: 0; }
 }
 .mini-card:hover { border-color: var(--primary); }
 .mini-label { font-size: 0.78rem; color: var(--text-muted); font-weight: 600; }
-.mini-value { font-weight: 800; font-size: 0.98rem; overflow-wrap: anywhere; line-height: 1.35; }
+.mini-value { font-weight: 800; font-size: 0.98rem; line-height: 1.35; }
 .mini-card.income .mini-value { color: var(--income); }
 .mini-card.expense .mini-value { color: var(--expense); }
 .mini-card.installments .mini-value { color: var(--installments); }
@@ -363,9 +369,9 @@ h2, h3 { margin: 0; }
 .tx-icon.income { background: var(--income-bg); }
 .tx-icon.expense { background: var(--expense-bg); }
 .tx-info { display: flex; flex-direction: column; gap: 2px; flex: 1; min-width: 0; }
-.tx-title { font-weight: 700; font-size: 0.93rem; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.tx-title { font-weight: 700; font-size: 0.93rem; overflow-wrap: anywhere; line-height: 1.5; }
 .tx-meta { font-size: 0.78rem; color: var(--text-muted); }
-.tx-amount { font-weight: 800; font-size: 0.95rem; white-space: nowrap; }
+.tx-amount { font-weight: 800; font-size: 0.95rem; text-align: end; max-width: 48%; }
 .tx-amount.income { color: var(--income); }
 .tx-amount.expense { color: var(--text); }
 .tag {
@@ -404,10 +410,10 @@ h2, h3 { margin: 0; }
 }
 .item-card.inactive { opacity: 0.55; }
 .item-info { display: flex; flex-direction: column; gap: 3px; flex: 1; min-width: 0; }
-.item-title { font-weight: 800; font-size: 0.95rem; }
+.item-title { font-weight: 800; font-size: 0.95rem; overflow-wrap: anywhere; }
 .item-sub { font-size: 0.78rem; color: var(--text-muted); }
-.item-side { display: flex; flex-direction: column; align-items: flex-end; gap: 4px; flex-shrink: 0; }
-.item-amount { font-weight: 800; font-size: 0.95rem; white-space: nowrap; }
+.item-side { display: flex; flex-direction: column; align-items: flex-end; gap: 4px; flex-shrink: 0; max-width: 48%; }
+.item-amount { font-weight: 800; font-size: 0.95rem; text-align: end; }
 .item-amount.income { color: var(--income); }
 .item-amount.expense { color: var(--expense); }
 .item-side-label { font-size: 0.72rem; color: var(--text-muted); }
@@ -445,7 +451,7 @@ h2, h3 { margin: 0; }
 }
 .net-strip > div + div { border-inline-start: 1px solid var(--border); }
 .net-strip span { font-size: 0.76rem; color: var(--text-muted); font-weight: 600; }
-.net-strip b { font-size: 1rem; overflow-wrap: anywhere; line-height: 1.4; }
+.net-strip b { font-size: 1rem; line-height: 1.4; }
 .net-strip b.income { color: var(--income); }
 .net-strip b.expense { color: var(--expense); }
 
@@ -772,13 +778,15 @@ form label.check-row input { width: 20px; height: 20px; flex-shrink: 0; accent-c
 .toast.show { opacity: 1; transform: translate(-50%, 0); }
 
 /* ===== Tablet ===== */
-@media (max-width: 860px) {
-  .dashboard-bottom { grid-template-columns: minmax(0, 1fr); }
+@media (max-width: 1100px) {
   .nav-btn { padding: 8px 10px; }
+}
+@media (max-width: 900px) {
+  .dashboard-bottom { grid-template-columns: minmax(0, 1fr); }
 }
 
 /* ===== Phone: bottom tab bar + bottom-sheet modals ===== */
-@media (max-width: 720px) {
+@media (max-width: 900px) {
   :root { --bottom-nav-h: calc(64px + env(safe-area-inset-bottom)); }
 
   /* backdrop-filter روی والد، position:fixed نوار پایین را به داخل هدر محدود می‌کند؛ پس در موبایل حذفش می‌کنیم */
@@ -853,14 +861,70 @@ form label.check-row input { width: 20px; height: 20px; flex-shrink: 0; accent-c
   @keyframes sheet-up-full { from { transform: translateY(100%); } to { transform: translateY(0); } }
 }
 
-@media (max-width: 400px) {
-  .brand-name { font-size: 1rem; }
-  .hero-card { padding: 18px 16px 14px; }
-  .hero-split-item { padding: 8px; gap: 8px; }
-  .hero-dot { width: 26px; height: 26px; }
-  .mini-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
-  .mini-card.installments { grid-column: 1 / -1; }
-  .net-strip > div { padding: 12px 10px; }
-  .net-strip b { font-size: 0.88rem; }
-  .category-grid { grid-template-columns: repeat(4, minmax(0, 1fr)); }
+/* modal stays centered (not a bottom sheet) on wide-but-short screens such as landscape phones and tablets */
+@media (max-width: 900px) and (min-width: 600px) {
+  .modal-overlay { align-items: center; padding: 16px; }
+  .modal { max-width: 460px; border-radius: 22px; max-height: 94vh; animation: sheet-up 0.22s ease-out; }
+}
+
+/* landscape phones: less vertical space */
+@media (max-height: 500px) and (orientation: landscape) {
+  .hero-card { padding: 14px 18px 12px; }
+  .hero-value { font-size: 1.5rem; margin: 2px 0 10px; }
+  .quick-btn { flex-direction: row; justify-content: center; padding: 8px; }
+  .quick-icon { width: 32px; height: 32px; }
+  .nav-btn { flex-direction: row; gap: 4px; }
+  .nav-icon { width: auto; height: auto; padding: 2px 6px; }
+  :root { --bottom-nav-h: calc(48px + env(safe-area-inset-bottom)); }
+}
+
+/* small phones: stack the money boxes so long amounts fit */
+@media (max-width: 480px) {
+  .hero-split { grid-template-columns: minmax(0, 1fr); }
+  .hero-value { font-size: 1.6rem; }
+  .mini-grid { grid-template-columns: minmax(0, 1fr); gap: 6px; }
+  .mini-card { flex-direction: row; align-items: center; justify-content: space-between; gap: 10px; padding: 11px 14px; }
+  .mini-value { font-size: 0.95rem; text-align: end; }
+  .net-strip { grid-template-columns: minmax(0, 1fr); }
+  .net-strip > div { flex-direction: row; justify-content: space-between; align-items: center; gap: 10px; padding: 11px 14px; }
+  .net-strip > div + div { border-inline-start: none; border-top: 1px solid var(--border); }
+  .net-strip b { text-align: end; }
+  .panel { padding: 14px; }
+  .tx-icon { width: 38px; height: 38px; border-radius: 12px; font-size: 1.05rem; }
+  /* مبلغ زیر عنوان می‌رود تا عنوان جای کافی داشته باشد */
+  .tx-row {
+    display: grid;
+    grid-template-columns: auto minmax(0, 1fr) auto;
+    grid-template-areas: "icon info del" "icon amount del";
+    column-gap: 12px;
+    row-gap: 2px;
+  }
+  .tx-row .tx-icon { grid-area: icon; align-self: start; }
+  .tx-row .tx-info { grid-area: info; }
+  .tx-row .tx-amount { grid-area: amount; max-width: none; text-align: start; }
+  .tx-row .row-delete-btn { grid-area: del; align-self: center; }
+  .item-card { flex-wrap: wrap; }
+  .item-card .tx-icon { align-self: flex-start; }
+  .item-side {
+    flex-basis: 100%;
+    max-width: none;
+    flex-direction: row;
+    align-items: center;
+    justify-content: space-between;
+    padding-inline-start: 48px;
+  }
+  .tx-amount, .item-amount { font-size: 0.88rem; }
+  .item-card { padding: 11px 12px; gap: 10px; }
+  .view-header h2 { font-size: 1.15rem; }
+  .detail-grid { grid-template-columns: minmax(0, 1fr); }
+}
+
+@media (max-width: 360px) {
+  .content { padding-left: 10px; padding-right: 10px; }
+  .nav-btn { font-size: 0.64rem; }
+  .nav-icon { width: 38px; }
+  .quick-btn { font-size: 0.82rem; padding: 12px 4px; }
+  .category-grid { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+  .kind-toggle-btn { font-size: 0.8rem; padding: 9px 2px; }
+  .amount-label input { font-size: 1.35rem; }
 }
